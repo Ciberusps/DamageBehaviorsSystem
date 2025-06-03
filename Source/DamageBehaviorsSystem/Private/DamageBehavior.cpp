@@ -101,7 +101,7 @@ void UDamageBehavior::ProcessHit(const FCapsuleHitRegistratorHitResult& CapsuleH
 	} 
 	
 	// TODO: looks like this SHOULD BE in HandleHit
-    if (CapsuleHitRegistratorHitResult.HitActor.IsValid() && CapsuleHitRegistratorHitResult.HitActor->GetClass()->ImplementsInterface(HittableInterfaceClass))
+    if (CanGetHit(CapsuleHitRegistratorHitResult, CapsuleHitRegistrator))
     {
     	// UObject* HitTarget = IHittableInterface::Execute_GetHitTarget(HitActor);
     	UObject* HitTarget = GetRootAttachedActor(HitActor);
@@ -142,10 +142,18 @@ void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const TArr
 	{
 		if (IsValid(CapsuleHitRegistratorsSource.Actor) && CapsuleHitRegistratorsSource.CapsuleHitRegistrators.Num() > 0)
 		{
+			FSourceHitRegistratorsToActivate* HitRegistratorsToActivate = SourceHitRegistratorsToActivate.FindByPredicate([=](const FSourceHitRegistratorsToActivate& Source) {
+				return Source.SourceName == CapsuleHitRegistratorsSource.SourceName;
+			});
+			if (!HitRegistratorsToActivate) continue;
+			
 			for (UCapsuleHitRegistrator* CapsuleHitRegistrator : CapsuleHitRegistratorsSource.CapsuleHitRegistrators)
 			{
-				CapsuleHitRegistrator->SetIsHitRegistrationEnabled(bShouldActivate, HitDetectionSettings);
-			}
+				if (HitRegistratorsToActivate->HitRegistratorsNames.Contains(CapsuleHitRegistrator->GetName()))
+				{
+					CapsuleHitRegistrator->SetIsHitRegistrationEnabled(bShouldActivate, HitDetectionSettings);
+				}
+			}	
 		}
 		else
 		{
@@ -157,6 +165,13 @@ void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const TArr
     {
         ClearHittedActors();
     }
+}
+
+bool UDamageBehavior::CanGetHit_Implementation(
+	const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult,
+	UCapsuleHitRegistrator* CapsuleHitRegistrator)
+{
+	return CapsuleHitRegistratorHitResult.HitActor.IsValid();
 }
 
 bool UDamageBehavior::HandleHit_Implementation(

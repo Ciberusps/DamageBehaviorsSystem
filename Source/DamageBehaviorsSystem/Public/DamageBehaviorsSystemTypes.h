@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "DamageBehaviorsSystemTypes.generated.h"
 
+const FString DEFAULT_DAMAGE_BEHAVIOR_SOURCE = FString(TEXT("OwnerActor"));
+
 UENUM(BlueprintType)
 enum class EDamageBehaviorHitDetectionType : uint8
 {

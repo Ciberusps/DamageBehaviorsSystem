@@ -51,6 +51,7 @@ void UDamageBehaviorsComponent::BeginPlay()
 
 	// find capsules on owner actor and add them to Sources
 	FCapsuleHitRegistratorsSource OwnerCapsulesSource = {};
+	OwnerCapsulesSource.SourceName = DEFAULT_DAMAGE_BEHAVIOR_SOURCE;
 	OwnerCapsulesSource.Actor = GetOwner();
 	// TODO: don't need to find TMap only capsules is enough
 	FindCapsuleHitRegistrators(OwnerCapsulesSource.Actor).GenerateValueArray(OwnerCapsulesSource.CapsuleHitRegistrators);
@@ -68,6 +69,7 @@ void UDamageBehaviorsComponent::BeginPlay()
 			{
 				// fill capsules
 				FCapsuleHitRegistratorsSource CapsulesSource = {};
+				CapsulesSource.SourceName = Evaluator->SourceName;
 				CapsulesSource.Actor = Evaluator->GetActorWithCapsules();
 				// TODO: don't need to find TMap only capsules is enough
 				FindCapsuleHitRegistrators(CapsulesSource.Actor).GenerateValueArray(CapsulesSource.CapsuleHitRegistrators);

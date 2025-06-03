@@ -20,17 +20,10 @@ public:
 	virtual void PostInitProperties() override;
 #endif
 
-	// UPROPERTY(
-	// 	config,
-	// 	EditAnywhere,
-	// 	Category="GodreaperSettings|AI",
-	// 	meta=(AllowedClasses="/Script/AIModule.BehaviorTree"))
-	// FSoftObjectPath DefaultInitialPoseTree;
-
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
 	TArray<TSubclassOf<UAdditionalDamageBehaviorsSourceEvaluator>> AdditionalDamageBehaviorsSourcesEvaluators = {};
 
-	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")  
+	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings", meta=(AllowAbstract))  
 	TSoftClassPtr<UInterface> HittableInterfaceRef;
 
 	UPROPERTY(config, EditAnywhere, Category="Trace|Collision")

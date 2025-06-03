@@ -15,16 +15,31 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageBehaviorHitRegistered,
     const TArray<FInstancedStruct>&, Payload
 );
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FCapsuleHitRegistratorsSource
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString SourceName;
+	
 	UPROPERTY()
 	AActor* Actor = nullptr;
 
 	UPROPERTY()
 	TArray<UCapsuleHitRegistrator*> CapsuleHitRegistrators;
+};
+
+USTRUCT(BlueprintType)
+struct FSourceHitRegistratorsToActivate
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString SourceName;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FString> HitRegistratorsNames = {};
 };
 
 // TODO: make instanced UObject
@@ -45,7 +60,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString Name;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehaviorDescription", meta=(ShowOnlyInnerProperties))
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehaviorDescription", meta=(ShowOnlyInnerProperties))
 	FDamageBehaviorHitDetectionSettings HitDetectionSettings;
 
     /**
@@ -71,11 +86,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FString Comment = FString("");
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(GetOptions="GetHitRegistratorsNameOptions"))
-    TArray<FString> HitRegistratorsNames;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TMap<FString, FString> SourceHitRegistratorsToActivate;
+	TArray<FSourceHitRegistratorsToActivate> SourceHitRegistratorsToActivate = {
+		{ DEFAULT_DAMAGE_BEHAVIOR_SOURCE }
+	};
 	
     UPROPERTY()
     TArray<FCapsuleHitRegistratorsSource> CapsuleHitRegistratorsSources = {};
@@ -90,6 +104,10 @@ public:
     void MakeActive(bool bShouldActivate, const TArray<FInstancedStruct>& Payload);
     // void MakeActive(bool bShouldActivate, EPhysDamageType OverridePhysDamageType_In);
 
+	// make your checks for IHittableInterface or whatever you check that actor is hittable 
+	UFUNCTION(BlueprintNativeEvent)
+	bool CanGetHit(const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
+	
 	// Result - is hit should be registered
 	UFUNCTION(BlueprintNativeEvent)
 	bool HandleHit(const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator, TArray<FInstancedStruct>& Payload_Out);

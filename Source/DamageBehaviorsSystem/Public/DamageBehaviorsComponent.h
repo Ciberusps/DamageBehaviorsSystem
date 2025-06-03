@@ -9,10 +9,7 @@
 #include "StructUtils/InstancedStruct.h"
 #include "DamageBehaviorsComponent.generated.h"
 
-class ABPlayerCharacter;
 class UCapsuleHitRegistrator;
-class ABBaseEnemy;
-class ABBaseCharacter;
 class UCapsuleHitRegistratorUDamageBehavior;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDamageBehaviorsSystem, Log, All);
@@ -22,8 +19,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDamageBehaviorOnProcessedHit,
 	const FString, DamageBehaviorName,
 	const FCapsuleHitRegistratorHitResult&, CapsuleHitRegistratorHitResult
 );
-
-const FString DEFAULT_DAMAGE_BEHAVIOR_SOURCE = FString(TEXT("OwnerActor"));
 
 USTRUCT(BlueprintType)
 struct FDamageBehaviorsSource
@@ -80,7 +75,7 @@ public:
     UPROPERTY(BlueprintAssignable)
     FDamageBehaviorOnProcessedHit OnHitCharacter;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, meta=(TitleProperty="Description.Name"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, meta=(TitleProperty="Name"))
 	TArray<UDamageBehavior*> DamageBehaviorsInstancedTest;
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent)

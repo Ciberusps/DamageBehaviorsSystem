@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "CapsuleHitRegistrator.h"
+#include "StructUtils/InstancedStruct.h"
 #include "DamageBehavior.generated.h"
 
 class UCapsuleHitRegistrator;
@@ -42,13 +43,22 @@ struct FSourceHitRegistratorsToActivate
 	TArray<FString> HitRegistratorsNames = {};
 };
 
+USTRUCT(BlueprintType)
+struct FSourceHitRegistratorsToActivateTEST
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FString> HitRegistratorsNames = {};
+};
+
 // TODO: make instanced UObject
 /**
  * DamageBehavior entity that handles all hits from dumb "CapsuleHitRegistrators"
  * and filter hitted objects by adding them in "HitActors".
  * When "InvokeDamageBehavior" ends, all "HitActors" cleanup
  */
-UCLASS(BlueprintType, DefaultToInstanced, EditInlineNew, AutoExpandCategories = ("Default"))
+UCLASS(BlueprintType, DefaultToInstanced, EditInlineNew, AutoExpandCategories = ("Default,DamageBehavior"), meta=(DisplayName=""))
 class DAMAGEBEHAVIORSSYSTEM_API UDamageBehavior : public UObject
 {
     GENERATED_BODY()
@@ -57,21 +67,21 @@ public:
     UPROPERTY(BlueprintAssignable)
     FOnDamageBehaviorHitRegistered OnHitRegistered;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
 	FString Name;
 
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehaviorDescription", meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", meta=(ShowOnlyInnerProperties))
 	FDamageBehaviorHitDetectionSettings HitDetectionSettings;
 
     /**
      * @brief If enabled DamageBehaviorsComponent will DealDamage to enemy automatically
      * Enable it only on AI enemies or in cases when DamageBehavior on Character(like DmgBeh_Roll, DmgBeh_Backstep)...
      */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     bool bAutoHandleDamage = false;
 
 	// used for attack GameplayAbilities mostly
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     bool bInvokeDamageBehaviorOnStart = false;
 
 	// используется для атак где враг должен нас "протащить"
@@ -80,13 +90,20 @@ public:
 	// пример - атака "таран" где враг бежит и может нас насадить на меч на какое-то время
 	// пример - атака "дракон дешится" при этом крыло находится низко к земле, на крыле должен
 	// протащить несколько секунд
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     bool bAttachEnemiesToCapsuleWhileActive = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     FString Comment = FString("");
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
+	TMap<FString, FString> HitRegistratorsToActivate3 = {};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
+	TMap<FString, FSourceHitRegistratorsToActivateTEST> HitRegistratorsToActivate2 = {};
+
+	// TODO: HitRegistratorsToActivateBySource
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
 	TArray<FSourceHitRegistratorsToActivate> SourceHitRegistratorsToActivate = {
 		{ DEFAULT_DAMAGE_BEHAVIOR_SOURCE }
 	};
@@ -120,6 +137,11 @@ public:
 
 	// TODO: probably not required at all after refactoring
 	TArray<UCapsuleHitRegistrator*> GetCapsuleHitRegistratorsFromAllSources() const;
+
+protected:
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	
 private:
     UPROPERTY()

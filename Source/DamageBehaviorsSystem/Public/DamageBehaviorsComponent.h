@@ -75,8 +75,14 @@ public:
     UPROPERTY(BlueprintAssignable)
     FDamageBehaviorOnProcessedHit OnHitCharacter;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, meta=(TitleProperty="Name"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, meta=(TitleProperty="Name"), Category="DamageBehaviorsComponent")
 	TArray<UDamageBehavior*> DamageBehaviorsInstancedTest;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString Test1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FString> Test2;
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
     AActor* GetOwningActor() const;

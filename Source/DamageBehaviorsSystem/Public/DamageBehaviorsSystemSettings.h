@@ -16,10 +16,6 @@ class DAMAGEBEHAVIORSSYSTEM_API UDamageBehaviorsSystemSettings : public UDevelop
 	GENERATED_BODY()
 
 public:
-#if WITH_EDITOR
-	virtual void PostInitProperties() override;
-#endif
-
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
 	TArray<TSubclassOf<UAdditionalDamageBehaviorsSourceEvaluator>> AdditionalDamageBehaviorsSourcesEvaluators = {};
 

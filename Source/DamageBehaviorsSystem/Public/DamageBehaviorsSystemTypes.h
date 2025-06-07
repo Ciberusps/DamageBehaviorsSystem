@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "DamageBehaviorsSystemTypes.generated.h"
 
-const FString DEFAULT_DAMAGE_BEHAVIOR_SOURCE = FString(TEXT("OwnerActor"));
+const FString DEFAULT_DAMAGE_BEHAVIOR_SOURCE = FString(TEXT("ThisActor"));
 
 UENUM(BlueprintType)
 enum class EDamageBehaviorHitDetectionType : uint8
@@ -22,11 +22,11 @@ struct FDamageBehaviorHitDetectionSettings
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly, Category="DamageBehavior")
 	EDamageBehaviorHitDetectionType HitDetectionType = EDamageBehaviorHitDetectionType::ByTrace;
-	UPROPERTY(EditDefaultsOnly, meta = (EditCondition = "HitDetectionType == EDamageBehaviorHitDetectionType::ByEntering"))
+	UPROPERTY(EditDefaultsOnly, Category="DamageBehavior", meta = (EditCondition = "HitDetectionType == EDamageBehaviorHitDetectionType::ByEntering"))
 	bool bCheckOverlappingActorsOnStart = true;
-	UPROPERTY(EditDefaultsOnly, meta = (EditCondition = "HitDetectionType == EDamageBehaviorHitDetectionType::ByEntering"))
+	UPROPERTY(EditDefaultsOnly, Category="DamageBehavior", meta = (EditCondition = "HitDetectionType == EDamageBehaviorHitDetectionType::ByEntering"))
 	FCollisionProfileName CollisionProfileName = FCollisionProfileName(FName("VolumeHitRegistrator"));
 
 	// call GetHit every time "WhileStandingInside"

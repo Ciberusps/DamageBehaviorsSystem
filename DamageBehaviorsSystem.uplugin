@@ -2,8 +2,8 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0.0",
-	"FriendlyName": "UnrealHelperLibrary StateTree",
-	"Description": "Helps working with StateTreeAI",
+	"FriendlyName": "DamageBehaviorsSystem",
+	"Description": "Complex damage behaviors consisting of multiple capsules",
 	"Category": "",
 	"CreatedBy": "Ciberus",
 	"CreatedByURL": "https://github.com/Ciberusps",
@@ -11,7 +11,7 @@
 	"MarketplaceURL": "",
 	"SupportURL": "https://github.com/Ciberusps/damage-behaviors-system/issues",
 	"EngineVersion": "5.5.0",
-	"FabURL": "com.epicgames.launcher://ue/Fab/product/19390f7a-1d31-46ee-a54c-511b7f1a8166",
+	"FabURL": "",
 	"EnabledByDefault": true,
 	"CanContainContent": true,
 	"Installed": false,
@@ -21,10 +21,12 @@
 		{
 			"Name": "DamageBehaviorsSystem",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [
-				"Win64"
-			]
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "DBSEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		}
 	]
 }

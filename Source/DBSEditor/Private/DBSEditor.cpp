@@ -17,7 +17,7 @@ void FDBSEditorModule::StartupModule()
 
 	// DamageBehavior
 	PEM.RegisterCustomPropertyTypeLayout(
-		"SourceHitRegistratorsToActivate",
+	"HitRegistratorsToActivateSource",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(
 			&FDBSEditorDamageBehaviorDetails::MakeInstance
 		)
@@ -38,7 +38,7 @@ void FDBSEditorModule::ShutdownModule()
 	{
 		FPropertyEditorModule& PEM =
 			FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PEM.UnregisterCustomPropertyTypeLayout("SourceHitRegistratorsToActivate");
+		PEM.UnregisterCustomPropertyTypeLayout("HitRegistratorsToActivateSource");
 	}
 
 	// DamageBehaviorComponent

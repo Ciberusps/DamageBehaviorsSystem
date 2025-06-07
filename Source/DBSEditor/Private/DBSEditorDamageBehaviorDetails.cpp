@@ -29,6 +29,7 @@ void FDBSEditorDamageBehaviorDetails::CustomizeHeader(
 	// 	SNew(SBox)
 	// 	.MinDesiredWidth(0)
 	// ];
+	// Skip the default struct header entirely
 }
 
 void FDBSEditorDamageBehaviorDetails::CustomizeChildren(
@@ -41,7 +42,7 @@ void FDBSEditorDamageBehaviorDetails::CustomizeChildren(
 	FString SourceName;
 	if (TSharedPtr<IPropertyHandle> NameHandle =
 		StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(
-			FSourceHitRegistratorsToActivate, SourceName)))
+			FHitRegistratorsToActivateSource, SourceName)))
 	{
 		NameHandle->GetValue(SourceName);
 	}
@@ -50,23 +51,15 @@ void FDBSEditorDamageBehaviorDetails::CustomizeChildren(
 		SourceName = TEXT("UnnamedSource");
 	}
 
-	// 2) Get the HitRegistratorsNames array handle
+	// 2) Show the HitRegistratorsNames array using its built-in editor
 	if (TSharedPtr<IPropertyHandle> ArrHandle =
 		StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(
-			FSourceHitRegistratorsToActivate, HitRegistratorsNames)))
+			FHitRegistratorsToActivateSource, HitRegistratorsNames)))
 	{
-		// 3) If this is the “ThisActor” source, inject our GetOptions meta
-		if (SourceName == TEXT("ThisActor"))
-		{
-			// This must match your static function’s name exactly:
-			ArrHandle->SetInstanceMetaData(TEXT("GetOptions"), TEXT("GetHitRegistratorsNameOptions"));
-		}
-
-		// 4) Now add the property row as usual
 		StructBuilder.AddProperty(ArrHandle.ToSharedRef())
 			.DisplayName(FText::FromString(SourceName))
 			.ToolTip(FText::FromString(
-				FString::Printf(TEXT("HitRegistrator names for \"%s\""), *SourceName)))
+				FString::Printf(TEXT("Registrator names for \"%s\""), *SourceName)))
 			.ShowPropertyButtons(true);
 	}
 }

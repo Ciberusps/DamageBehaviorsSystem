@@ -12,13 +12,13 @@
 
 void UDamageBehavior::Init(
 	AActor* Owner_In,
-	const TArray<FCapsuleHitRegistratorsSource>& CapsuleHitRegistratorsSources_In
+	const TArray<FHitRegistratorsSource>& CapsuleHitRegistratorsSources_In
 )
 {
     OwnerActor = Owner_In;
-	CapsuleHitRegistratorsSources = CapsuleHitRegistratorsSources_In;
+	HitRegistratorsSources = CapsuleHitRegistratorsSources_In;
 
-	for (const FCapsuleHitRegistratorsSource& CapsuleHitRegistratorsSource : CapsuleHitRegistratorsSources)
+	for (const FHitRegistratorsSource& CapsuleHitRegistratorsSource : HitRegistratorsSources)
 	{
 		if (IsValid(CapsuleHitRegistratorsSource.Actor) && CapsuleHitRegistratorsSource.CapsuleHitRegistrators.Num() > 0)
 		{
@@ -40,7 +40,7 @@ void UDamageBehavior::Init(
 TArray<UCapsuleHitRegistrator*> UDamageBehavior::GetCapsuleHitRegistratorsFromAllSources() const
 {
 	TArray<UCapsuleHitRegistrator*> Result = {};
-	for (FCapsuleHitRegistratorsSource CapsuleHitRegistratorsSource : CapsuleHitRegistratorsSources)
+	for (FHitRegistratorsSource CapsuleHitRegistratorsSource : HitRegistratorsSources)
 	{
 		Result.Append(CapsuleHitRegistratorsSource.CapsuleHitRegistrators);
 	}
@@ -96,13 +96,13 @@ void UDamageBehavior::SyncSourcesFromSettings()
 
     // 2) Rebuild the Sources array to match DesiredNames exactly
     bool bChanged = false;
-    TArray<FSourceHitRegistratorsToActivate> NewSources = {};
+    TArray<FHitRegistratorsToActivateSource> NewSources = {};
 
     for (const FString& SourceName : DesiredNames)
     {
         // find existing entry
         int32 FoundIdx = HitRegistratorsToActivateBySource.IndexOfByPredicate(
-            [&](const FSourceHitRegistratorsToActivate& E)
+            [&](const FHitRegistratorsToActivateSource& E)
             {
                 return E.SourceName == SourceName;
             });
@@ -115,7 +115,7 @@ void UDamageBehavior::SyncSourcesFromSettings()
         else
         {
             // create a fresh entry
-            FSourceHitRegistratorsToActivate E;
+            FHitRegistratorsToActivateSource E;
             E.SourceName = SourceName;
             NewSources.Add(E);
         }
@@ -248,11 +248,11 @@ void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const TArr
 {
     bIsActive = bShouldActivate;
 
-	for (const FCapsuleHitRegistratorsSource& CapsuleHitRegistratorsSource : CapsuleHitRegistratorsSources)
+	for (const FHitRegistratorsSource& CapsuleHitRegistratorsSource : HitRegistratorsSources)
 	{
 		if (IsValid(CapsuleHitRegistratorsSource.Actor) && CapsuleHitRegistratorsSource.CapsuleHitRegistrators.Num() > 0)
 		{
-			FSourceHitRegistratorsToActivate* HitRegistratorsToActivate = HitRegistratorsToActivateBySource.FindByPredicate([=](const FSourceHitRegistratorsToActivate& Source) {
+			FHitRegistratorsToActivateSource* HitRegistratorsToActivate = HitRegistratorsToActivateBySource.FindByPredicate([=](const FHitRegistratorsToActivateSource& Source) {
 				return Source.SourceName == CapsuleHitRegistratorsSource.SourceName;
 			});
 			if (!HitRegistratorsToActivate) continue;

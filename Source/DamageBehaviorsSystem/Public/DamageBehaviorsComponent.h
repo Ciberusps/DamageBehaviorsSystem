@@ -82,7 +82,7 @@ public:
 		Category="DamageBehaviorsComponent",
 		meta=(TitleProperty="Name", ShowOnlyInnerProperties)
 	)
-	TArray<UDamageBehavior*> DamageBehaviorsInstancedTest;
+	TArray<UDamageBehavior*> DamageBehaviors;
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
     AActor* GetOwningActor() const;
@@ -95,22 +95,33 @@ public:
 	// attacks by body parts (hands/footstomps and so on)
     UFUNCTION(BlueprintCallable, meta=(AutoCreateRefTerm="DamageBehaviorsSourcesToUse,Payload"))
 	void InvokeDamageBehavior(
-		FString DamageBehaviorName,
-		bool bShouldActivate,
+		const FString& DamageBehaviorName,
+		const bool bShouldActivate,
 		const TArray<FString>& DamageBehaviorsSourcesToUse,
 		const TArray<FInstancedStruct>& Payload
 	);
     
     UFUNCTION(BlueprintCallable)
-    const TMap<FString, UDamageBehavior*>& GetDamageBehaviors() const { return DamageBehaviors; };
+    const TArray<UDamageBehavior*>& GetDamageBehaviors() const { return DamageBehaviors; };
+
     UFUNCTION(BlueprintCallable)
-    UDamageBehavior* GetDamageBehavior(FString Name) const;
+    UDamageBehavior* GetDamageBehavior(const FString& Name) const;
 
 	// TODO: попытаться вернуть, но хз зач все это можно в DamageBehavior'ах ловить
     // for cases there ProcessHit is custom, e.g. BProjectileComponent, MeleeWeaponItem, ...
     // UFUNCTION(BlueprintCallable)
     // void DefaultOnHitAnything(const UDamageBehavior* DamageBehavior, const FGetHitResult& GetHitResult, const bool bSpawnFX = false);
 
+	
+	UFUNCTION()
+	TArray<UAdditionalDamageBehaviorsSourceEvaluator*> SpawnEvaluators();
+	
+	UFUNCTION()
+	TArray<UAdditionalDamageBehaviorsSourceEvaluator*> GetDamageBehaviorsSourceEvaluators() const { return DamageBehaviorsSourceEvaluators; };
+
+	UFUNCTION()
+	const TArray<FHitRegistratorsSource> GetHitRegistratorsSources(TArray<UAdditionalDamageBehaviorsSourceEvaluator*> SourceEvaluators_In) const;
+	
 protected:
     virtual void BeginPlay() override;
 
@@ -123,12 +134,12 @@ protected:
 	UPROPERTY()
 	TArray<FDamageBehaviorsSource> DamageBehaviorsSources = {};
 	
-	UPROPERTY()
-	TMap<FString, UDamageBehavior*> DamageBehaviors = {};
-	
 private:
     UPROPERTY()
     TObjectPtr<AActor> OwnerActor;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UAdditionalDamageBehaviorsSourceEvaluator>> DamageBehaviorsSourceEvaluators = {};
 
     UFUNCTION()
     TMap<FString, UCapsuleHitRegistrator*> FindCapsuleHitRegistrators(AActor* Actor) const;

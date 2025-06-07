@@ -13,11 +13,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageBehaviorHitRegistered,
     const FCapsuleHitRegistratorHitResult&, CapsuleHitRegistratorHitResult,
     const class UDamageBehavior*, DamageBehavior,
     const UCapsuleHitRegistrator*, CapsuleHitRegistrator,
+    // TODO: use one InstancedStruct, we can put in one struct another InstancedStructs
+    // no need to use TArray
     const TArray<FInstancedStruct>&, Payload
 );
 
 USTRUCT(BlueprintType)
-struct FCapsuleHitRegistratorsSource
+struct FHitRegistratorsSource
 {
 	GENERATED_BODY()
 
@@ -32,22 +34,18 @@ struct FCapsuleHitRegistratorsSource
 };
 
 USTRUCT(BlueprintType)
-struct FSourceHitRegistratorsToActivate
+struct FHitRegistratorsToActivateSource
 {
 	GENERATED_BODY()
 
+	FHitRegistratorsToActivateSource() = default;
+	FHitRegistratorsToActivateSource(
+		FString SourceName_In, TArray<FString> HitRegistratorsNames_In)
+		: SourceName(SourceName_In), HitRegistratorsNames(HitRegistratorsNames_In) {};
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString SourceName;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FString> HitRegistratorsNames = {};
-};
-
-USTRUCT(BlueprintType)
-struct FSourceHitRegistratorsToActivateTEST
-{
-	GENERATED_BODY()
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FString> HitRegistratorsNames = {};
 };
@@ -68,7 +66,7 @@ public:
     FOnDamageBehaviorHitRegistered OnHitRegistered;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
-	FString Name;
+	FString Name = "";
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", meta=(ShowOnlyInnerProperties))
 	FDamageBehaviorHitDetectionSettings HitDetectionSettings;
@@ -96,25 +94,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     FString Comment = FString("");
 
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
-	// TMap<FString, FString> HitRegistratorsToActivate3 = {};
-	//
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
-	// TMap<FString, FSourceHitRegistratorsToActivateTEST> HitRegistratorsToActivate2 = {};
-
-	// TODO: HitRegistratorsToActivateBySource
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", DisplayName="HitRegistrators to Activate")
-	TArray<FSourceHitRegistratorsToActivate> HitRegistratorsToActivateBySource = {
-		{ DEFAULT_DAMAGE_BEHAVIOR_SOURCE }
+	TArray<FHitRegistratorsToActivateSource> HitRegistratorsToActivateBySource = {
+		{ DEFAULT_DAMAGE_BEHAVIOR_SOURCE, {} }
 	};
 	
     UPROPERTY()
-    TArray<FCapsuleHitRegistratorsSource> CapsuleHitRegistratorsSources = {};
+    TArray<FHitRegistratorsSource> HitRegistratorsSources = {};
 
 	// TODO now is instanced uobject Init not required, probably constructor required - refactor
     void Init(
     	AActor* Owner_In,
-    	const TArray<FCapsuleHitRegistratorsSource>& CapsuleHitRegistratorsSources_In = {}
+    	const TArray<FHitRegistratorsSource>& CapsuleHitRegistratorsSources_In = {}
     );
 
 	UFUNCTION(BlueprintNativeEvent)
@@ -142,6 +133,15 @@ public:
 
 	UFUNCTION()
 	TArray<FString> GetHitRegistratorsNameOptions() const;
+
+	bool operator==(const FString& OtherName) const
+	{
+		return Name == OtherName;
+	}
+	bool operator==(const UDamageBehavior* Other) const
+	{
+		return Name == Other->Name;
+	}
 
 protected:
 #if WITH_EDITOR

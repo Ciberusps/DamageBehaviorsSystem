@@ -19,4 +19,4 @@ void FDamageBehaviorsSystemModule::ShutdownModule()
 
 #undef LOCTEXT_NAMESPACE
 
-IMPLEMENT_MODULE(FDamageBehaviorsSystemModule, DamageBehaviorsSystemModule)
+IMPLEMENT_MODULE(FDamageBehaviorsSystemModule, DamageBehaviorsSystem)

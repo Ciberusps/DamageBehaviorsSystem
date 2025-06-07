@@ -17,7 +17,7 @@ void FDBSEditorDamageBehaviorComponentDetails::CustomizeDetails(IDetailLayoutBui
 {
 	// Locate the array property
 	TSharedRef<IPropertyHandle> ArrayHandle = DetailBuilder.GetProperty(
-		GET_MEMBER_NAME_CHECKED(UDamageBehaviorsComponent, DamageBehaviorsInstancedTest));
+		GET_MEMBER_NAME_CHECKED(UDamageBehaviorsComponent, DamageBehaviors));
 
 	// Hide default layout
 	DetailBuilder.HideProperty(ArrayHandle);
@@ -35,9 +35,9 @@ void FDBSEditorDamageBehaviorComponentDetails::CustomizeDetails(IDetailLayoutBui
 	if (!Component) return;
 
 	// Iterate over array
-	for (int32 i = 0; i < Component->DamageBehaviorsInstancedTest.Num(); ++i)
+	for (int32 i = 0; i < Component->DamageBehaviors.Num(); ++i)
 	{
-		UDamageBehavior* Behavior = Component->DamageBehaviorsInstancedTest[i];
+		UDamageBehavior* Behavior = Component->DamageBehaviors[i];
 		if (!Behavior) continue;
 
 		// Create group for each element, label it with TitleProperty if available
@@ -89,7 +89,7 @@ void FDBSEditorDamageBehaviorComponentDetails::CustomizeDetails(IDetailLayoutBui
     // TSharedRef<IPropertyHandle> BehaviorsHandle =
     //     DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(
     //         UDamageBehaviorsComponent,
-    //         DamageBehaviorsInstancedTest
+    //         DamageBehaviors
     //     ));
     //
     // // Hide the default widget (so nothing auto‐draws)

@@ -3,8 +3,6 @@
 #include "DBSEditor.h"
 
 #include "DBSEditorDamageBehaviorDetails.h"
-#include "DamageBehavior.h"
-#include "DamageBehaviorsComponent.h"
 #include "Misc/MessageDialog.h"
 #include "ToolMenus.h"
 
@@ -17,21 +15,38 @@ void FDBSEditorModule::StartupModule()
 	FPropertyEditorModule& PEM =
 		FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-	PEM.RegisterCustomClassLayout(
-		UDamageBehaviorsComponent::StaticClass()->GetFName(),
-		FOnGetDetailCustomizationInstance::CreateStatic(&FDBSEditorDamageBehaviorDetails::MakeInstance)
+	// DamageBehavior
+	PEM.RegisterCustomPropertyTypeLayout(
+		"SourceHitRegistratorsToActivate",
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(
+			&FDBSEditorDamageBehaviorDetails::MakeInstance
+		)
 	);
+
+	// DamageBehaviorComponent
+	// PEM.RegisterCustomClassLayout(
+	// 	"DamageBehaviorsComponent",
+	// 	FOnGetDetailCustomizationInstance::CreateStatic(&FDBSEditorDamageBehaviorComponentDetails::MakeInstance)
+	// );
+	// PEM.NotifyCustomizationModuleChanged();
 }
 
 void FDBSEditorModule::ShutdownModule()
 {
+	// DamageBehavior
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
 		FPropertyEditorModule& PEM =
 			FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-		PEM.UnregisterCustomClassLayout(UDamageBehaviorsComponent::StaticClass()->GetFName());
+		PEM.UnregisterCustomPropertyTypeLayout("SourceHitRegistratorsToActivate");
 	}
+
+	// DamageBehaviorComponent
+	// if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+	// {
+	// 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	// 	PropertyModule.UnregisterCustomClassLayout("DamageBehaviorsComponent");
+	// }
 }
 
 #undef LOCTEXT_NAMESPACE

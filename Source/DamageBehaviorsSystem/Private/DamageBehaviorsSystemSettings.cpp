@@ -9,10 +9,3 @@ FName UDamageBehaviorsSystemSettings::GetCategoryName() const
 {
 	return FApp::GetProjectName();
 }
-
-#if WITH_EDITOR
-void UDamageBehaviorsSystemSettings::PostInitProperties()
-{
-	Super::PostInitProperties();
-}
-#endif

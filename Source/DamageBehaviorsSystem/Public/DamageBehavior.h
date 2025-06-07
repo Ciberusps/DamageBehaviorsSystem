@@ -96,15 +96,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     FString Comment = FString("");
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
-	TMap<FString, FString> HitRegistratorsToActivate3 = {};
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
-	TMap<FString, FSourceHitRegistratorsToActivateTEST> HitRegistratorsToActivate2 = {};
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
+	// TMap<FString, FString> HitRegistratorsToActivate3 = {};
+	//
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
+	// TMap<FString, FSourceHitRegistratorsToActivateTEST> HitRegistratorsToActivate2 = {};
 
 	// TODO: HitRegistratorsToActivateBySource
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
-	TArray<FSourceHitRegistratorsToActivate> SourceHitRegistratorsToActivate = {
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", DisplayName="HitRegistrators to Activate")
+	TArray<FSourceHitRegistratorsToActivate> HitRegistratorsToActivateBySource = {
 		{ DEFAULT_DAMAGE_BEHAVIOR_SOURCE }
 	};
 	
@@ -138,8 +138,15 @@ public:
 	// TODO: probably not required at all after refactoring
 	TArray<UCapsuleHitRegistrator*> GetCapsuleHitRegistratorsFromAllSources() const;
 
+	void SyncSourcesFromSettings();
+
+	UFUNCTION()
+	TArray<FString> GetHitRegistratorsNameOptions() const;
+
 protected:
 #if WITH_EDITOR
+	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	

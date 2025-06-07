@@ -75,14 +75,14 @@ public:
     UPROPERTY(BlueprintAssignable)
     FDamageBehaviorOnProcessedHit OnHitCharacter;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, meta=(TitleProperty="Name"), Category="DamageBehaviorsComponent")
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadWrite,
+		Instanced,
+		Category="DamageBehaviorsComponent",
+		meta=(TitleProperty="Name", ShowOnlyInnerProperties)
+	)
 	TArray<UDamageBehavior*> DamageBehaviorsInstancedTest;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString Test1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FString> Test2;
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
     AActor* GetOwningActor() const;
@@ -100,8 +100,7 @@ public:
 		const TArray<FString>& DamageBehaviorsSourcesToUse,
 		const TArray<FInstancedStruct>& Payload
 	);
-    UFUNCTION()
-	TArray<FString> GetHitRegistratorsNameOptions() const;
+    
     UFUNCTION(BlueprintCallable)
     const TMap<FString, UDamageBehavior*>& GetDamageBehaviors() const { return DamageBehaviors; };
     UFUNCTION(BlueprintCallable)
@@ -114,6 +113,12 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
+#endif
+	void SyncAllBehaviorSources();
 
 	UPROPERTY()
 	TArray<FDamageBehaviorsSource> DamageBehaviorsSources = {};

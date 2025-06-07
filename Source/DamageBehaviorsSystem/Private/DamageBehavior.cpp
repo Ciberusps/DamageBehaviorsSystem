@@ -6,6 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "CapsuleHitRegistrator.h"
 #include "DamageBehaviorsSystemSettings.h"
+#include "Utils/UnrealHelperLibraryBPL.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageBehavior)
 
@@ -45,6 +46,115 @@ TArray<UCapsuleHitRegistrator*> UDamageBehavior::GetCapsuleHitRegistratorsFromAl
 	}
 	return Result;
 }
+
+// In DamageBehavior.cpp
+
+#if WITH_EDITOR
+void UDamageBehavior::PostInitProperties()
+{
+	Super::PostInitProperties();
+	// Only sync on *instances*, not the CDO
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		SyncSourcesFromSettings();
+	}
+}
+
+void UDamageBehavior::PostLoad()
+{
+	Super::PostLoad();
+	SyncSourcesFromSettings();
+}
+
+void UDamageBehavior::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	SyncSourcesFromSettings();
+}
+#endif
+
+void UDamageBehavior::SyncSourcesFromSettings()
+{
+	const UDamageBehaviorsSystemSettings* Settings = GetDefault<UDamageBehaviorsSystemSettings>();
+    if (!Settings) return;
+
+    // 1) Build the canonical list of source names
+    TArray<FString> DesiredNames = { DEFAULT_DAMAGE_BEHAVIOR_SOURCE };
+    for (auto& EvalClass : Settings->AdditionalDamageBehaviorsSourcesEvaluators)
+    {
+        if (EvalClass)
+        {
+            if (auto* CDO = EvalClass->GetDefaultObject<UAdditionalDamageBehaviorsSourceEvaluator>())
+            {
+                if (!CDO->SourceName.IsEmpty())
+                {
+                    DesiredNames.AddUnique(CDO->SourceName);
+                }
+            }
+        }
+    }
+
+    // 2) Rebuild the Sources array to match DesiredNames exactly
+    bool bChanged = false;
+    TArray<FSourceHitRegistratorsToActivate> NewSources = {};
+
+    for (const FString& SourceName : DesiredNames)
+    {
+        // find existing entry
+        int32 FoundIdx = HitRegistratorsToActivateBySource.IndexOfByPredicate(
+            [&](const FSourceHitRegistratorsToActivate& E)
+            {
+                return E.SourceName == SourceName;
+            });
+
+        if (FoundIdx != INDEX_NONE)
+        {
+            // move the old entry into the new array (preserving HitRegistratorsNames)
+            NewSources.Add(MoveTemp(HitRegistratorsToActivateBySource[FoundIdx]));
+        }
+        else
+        {
+            // create a fresh entry
+            FSourceHitRegistratorsToActivate E;
+            E.SourceName = SourceName;
+            NewSources.Add(E);
+        }
+    }
+
+    // detect if anything actually changed (length or order or content pointers)
+    if (NewSources.Num() != HitRegistratorsToActivateBySource.Num())
+    {
+        bChanged = true;
+    }
+    else
+    {
+        for (int32 i = 0; i < NewSources.Num(); ++i)
+        {
+            if (NewSources[i].SourceName != HitRegistratorsToActivateBySource[i].SourceName ||
+                &NewSources[i].HitRegistratorsNames != &HitRegistratorsToActivateBySource[i].HitRegistratorsNames)
+            {
+                bChanged = true;
+                break;
+            }
+        }
+    }
+
+    // 3) If changed, apply it
+    if (bChanged)
+    {
+        Modify();
+        HitRegistratorsToActivateBySource = MoveTemp(NewSources);
+    }
+}
+
+TArray<FString> UDamageBehavior::GetHitRegistratorsNameOptions() const
+{
+	TArray<FString> Result = {};
+	UObject* Outer = GetOuter();
+	Result = UUnrealHelperLibraryBPL::GetNamesOfComponentsOnObject(Outer, UCapsuleHitRegistrator::StaticClass());
+	return Result;
+}
+
 
 void UDamageBehavior::ProcessHit(const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator)
 {
@@ -142,7 +252,7 @@ void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const TArr
 	{
 		if (IsValid(CapsuleHitRegistratorsSource.Actor) && CapsuleHitRegistratorsSource.CapsuleHitRegistrators.Num() > 0)
 		{
-			FSourceHitRegistratorsToActivate* HitRegistratorsToActivate = SourceHitRegistratorsToActivate.FindByPredicate([=](const FSourceHitRegistratorsToActivate& Source) {
+			FSourceHitRegistratorsToActivate* HitRegistratorsToActivate = HitRegistratorsToActivateBySource.FindByPredicate([=](const FSourceHitRegistratorsToActivate& Source) {
 				return Source.SourceName == CapsuleHitRegistratorsSource.SourceName;
 			});
 			if (!HitRegistratorsToActivate) continue;

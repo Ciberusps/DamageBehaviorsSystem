@@ -168,14 +168,6 @@ void UDamageBehaviorsComponent::InvokeDamageBehavior(
 	}
 }
 
-TArray<FString> UDamageBehaviorsComponent::GetHitRegistratorsNameOptions() const
-{
-    TArray<FString> Result = {};
-    UObject* Outer = GetOuter();
-    Result = UUnrealHelperLibraryBPL::GetNamesOfComponentsOnObject(Outer, UCapsuleHitRegistrator::StaticClass());
-    return Result;
-}
-
 UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehavior(FString Name) const
 {
     return DamageBehaviors[Name];
@@ -219,4 +211,30 @@ TMap<FString, UCapsuleHitRegistrator*> UDamageBehaviorsComponent::FindCapsuleHit
 	}
 
 	return Result;
+}
+
+#if WITH_EDITOR
+void UDamageBehaviorsComponent::PostLoad()
+{
+	Super::PostLoad();
+	SyncAllBehaviorSources();
+}
+
+void UDamageBehaviorsComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	// Whenever anything changes, re-sync all behaviors
+	SyncAllBehaviorSources();
+}
+#endif
+
+void UDamageBehaviorsComponent::SyncAllBehaviorSources()
+{
+	for (UDamageBehavior* Behavior : DamageBehaviorsInstancedTest)
+	{
+		if (Behavior)
+		{
+			Behavior->SyncSourcesFromSettings();
+		}
+	}
 }

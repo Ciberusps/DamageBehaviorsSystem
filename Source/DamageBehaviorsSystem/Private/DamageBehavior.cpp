@@ -12,13 +12,13 @@
 
 void UDamageBehavior::Init(
 	AActor* Owner_In,
-	const TArray<FHitRegistratorsSource>& CapsuleHitRegistratorsSources_In
+	const TArray<FDBSHitRegistratorsSource>& CapsuleHitRegistratorsSources_In
 )
 {
     OwnerActor = Owner_In;
 	HitRegistratorsSources = CapsuleHitRegistratorsSources_In;
 
-	for (const FHitRegistratorsSource& CapsuleHitRegistratorsSource : HitRegistratorsSources)
+	for (const FDBSHitRegistratorsSource& CapsuleHitRegistratorsSource : HitRegistratorsSources)
 	{
 		if (IsValid(CapsuleHitRegistratorsSource.Actor) && CapsuleHitRegistratorsSource.CapsuleHitRegistrators.Num() > 0)
 		{
@@ -40,7 +40,7 @@ void UDamageBehavior::Init(
 TArray<UCapsuleHitRegistrator*> UDamageBehavior::GetCapsuleHitRegistratorsFromAllSources() const
 {
 	TArray<UCapsuleHitRegistrator*> Result = {};
-	for (FHitRegistratorsSource CapsuleHitRegistratorsSource : HitRegistratorsSources)
+	for (FDBSHitRegistratorsSource CapsuleHitRegistratorsSource : HitRegistratorsSources)
 	{
 		Result.Append(CapsuleHitRegistratorsSource.CapsuleHitRegistrators);
 	}
@@ -96,13 +96,13 @@ void UDamageBehavior::SyncSourcesFromSettings()
 
     // 2) Rebuild the Sources array to match DesiredNames exactly
     bool bChanged = false;
-    TArray<FHitRegistratorsToActivateSource> NewSources = {};
+    TArray<FDBSHitRegistratorsToActivateSource> NewSources = {};
 
     for (const FString& SourceName : DesiredNames)
     {
         // find existing entry
         int32 FoundIdx = HitRegistratorsToActivateBySource.IndexOfByPredicate(
-            [&](const FHitRegistratorsToActivateSource& E)
+            [&](const FDBSHitRegistratorsToActivateSource& E)
             {
                 return E.SourceName == SourceName;
             });
@@ -115,7 +115,7 @@ void UDamageBehavior::SyncSourcesFromSettings()
         else
         {
             // create a fresh entry
-            FHitRegistratorsToActivateSource E;
+            FDBSHitRegistratorsToActivateSource E;
             E.SourceName = SourceName;
             NewSources.Add(E);
         }
@@ -156,7 +156,7 @@ TArray<FString> UDamageBehavior::GetHitRegistratorsNameOptions() const
 }
 
 
-void UDamageBehavior::ProcessHit(const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator)
+void UDamageBehavior::ProcessHit(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator)
 {
     if (!bIsActive) return;
 
@@ -164,7 +164,7 @@ void UDamageBehavior::ProcessHit(const FCapsuleHitRegistratorHitResult& CapsuleH
 	// bool bIsDebugEnabled = DebugSubsystem->IsCategoryEnabled(BGameplayTags::FindTagByString(BGameplayTags::TAG_DebugCategory_HitLog));
 	bool bIsDebugEnabled = true;
 	
-    AActor* HitActor = CapsuleHitRegistratorHitResult.HitActor.Get();
+    AActor* HitActor = HitRegistratorHitResult.HitActor.Get();
     if (!IsValid(HitActor) || this->HitActors.Contains(HitActor)) return;
 
 	if (bIsDebugEnabled && OwnerActor.IsValid())
@@ -185,19 +185,19 @@ void UDamageBehavior::ProcessHit(const FCapsuleHitRegistratorHitResult& CapsuleH
 		FString SurfaceName = "Surface_Error";
 		if (const UEnum* EnumPtr = StaticEnum<EPhysicalSurface>())
 		{
-			SurfaceName = EnumPtr->GetDisplayNameTextByValue((int64)CapsuleHitRegistratorHitResult.PhysicalSurfaceType).ToString();
+			SurfaceName = EnumPtr->GetDisplayNameTextByValue((int64)HitRegistratorHitResult.PhysicalSurfaceType).ToString();
 		}
 		
 		DrawDebugString(
 			OwnerActor->GetWorld(),
-			CapsuleHitRegistratorHitResult.HitResult.Location + FVector(0.0f, 25.0f, 0.0f),
-			FString::Printf(TEXT("%s try hit %s | Time: %fs | %s | HitActors %s"), *CapsuleHitRegistratorHitResult.Instigator->GetName(), *HitActor->GetName(), (Seconds + Milliseconds), *SurfaceName, *HitActorsStr),
+			HitRegistratorHitResult.HitResult.Location + FVector(0.0f, 25.0f, 0.0f),
+			FString::Printf(TEXT("%s try hit %s | Time: %fs | %s | HitActors %s"), *HitRegistratorHitResult.Instigator->GetName(), *HitActor->GetName(), (Seconds + Milliseconds), *SurfaceName, *HitActorsStr),
 			nullptr,
 			DebugColor,
 			1.0f,
 			true
 		);
-		DrawDebugPoint(OwnerActor->GetWorld(), CapsuleHitRegistratorHitResult.HitResult.Location, 10,
+		DrawDebugPoint(OwnerActor->GetWorld(), HitRegistratorHitResult.HitResult.Location, 10,
 			DebugColor, false, 1, -1);
 	}
 
@@ -211,7 +211,7 @@ void UDamageBehavior::ProcessHit(const FCapsuleHitRegistratorHitResult& CapsuleH
 	} 
 	
 	// TODO: looks like this SHOULD BE in HandleHit
-    if (CanGetHit(CapsuleHitRegistratorHitResult, CapsuleHitRegistrator))
+    if (CanGetHit(HitRegistratorHitResult, CapsuleHitRegistrator))
     {
     	// UObject* HitTarget = IHittableInterface::Execute_GetHitTarget(HitActor);
     	UObject* HitTarget = GetRootAttachedActor(HitActor);
@@ -232,27 +232,27 @@ void UDamageBehavior::ProcessHit(const FCapsuleHitRegistratorHitResult& CapsuleH
     	}
     }
 
-	TArray<FInstancedStruct> Payload_Out = {};
-	bool bResult = HandleHit(CapsuleHitRegistratorHitResult, CapsuleHitRegistrator, Payload_Out);
+	FInstancedStruct Payload_Out = {};
+	bool bResult = HandleHit(HitRegistratorHitResult, CapsuleHitRegistrator, Payload_Out);
 
 	if (bResult)
 	{
 		if (OnHitRegistered.IsBound())
 		{
-			OnHitRegistered.Broadcast(CapsuleHitRegistratorHitResult, this, CapsuleHitRegistrator, Payload_Out);
+			OnHitRegistered.Broadcast(HitRegistratorHitResult, this, CapsuleHitRegistrator, Payload_Out);
 		}
 	}
 }
 
-void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const TArray<FInstancedStruct>& Payload)
+void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const FInstancedStruct& Payload)
 {
     bIsActive = bShouldActivate;
 
-	for (const FHitRegistratorsSource& CapsuleHitRegistratorsSource : HitRegistratorsSources)
+	for (const FDBSHitRegistratorsSource& CapsuleHitRegistratorsSource : HitRegistratorsSources)
 	{
 		if (IsValid(CapsuleHitRegistratorsSource.Actor) && CapsuleHitRegistratorsSource.CapsuleHitRegistrators.Num() > 0)
 		{
-			FHitRegistratorsToActivateSource* HitRegistratorsToActivate = HitRegistratorsToActivateBySource.FindByPredicate([=](const FHitRegistratorsToActivateSource& Source) {
+			FDBSHitRegistratorsToActivateSource* HitRegistratorsToActivate = HitRegistratorsToActivateBySource.FindByPredicate([=](const FDBSHitRegistratorsToActivateSource& Source) {
 				return Source.SourceName == CapsuleHitRegistratorsSource.SourceName;
 			});
 			if (!HitRegistratorsToActivate) continue;
@@ -278,16 +278,16 @@ void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const TArr
 }
 
 bool UDamageBehavior::CanGetHit_Implementation(
-	const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult,
+	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
 	UCapsuleHitRegistrator* CapsuleHitRegistrator)
 {
-	return CapsuleHitRegistratorHitResult.HitActor.IsValid();
+	return HitRegistratorHitResult.HitActor.IsValid();
 }
 
 bool UDamageBehavior::HandleHit_Implementation(
-	const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult,
+	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
 	UCapsuleHitRegistrator* CapsuleHitRegistrator,
-	TArray<FInstancedStruct>& Payload_Out)
+	FInstancedStruct& Payload_Out)
 {
 	return true;
 }

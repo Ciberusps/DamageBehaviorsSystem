@@ -30,7 +30,7 @@ FDamageBehaviorsSource::FDamageBehaviorsSource(FString SourceName_In, AActor* Ac
 	}
 }
 
-AActor* UAdditionalDamageBehaviorsSourceEvaluator::GetActorWithCapsules_Implementation() const
+AActor* UAdditionalDamageBehaviorsSourceEvaluator::GetActorWithCapsules_Implementation(AActor* OwnerActor) const
 {
 	return nullptr;
 }
@@ -46,14 +46,18 @@ void UDamageBehaviorsComponent::BeginPlay()
 
 	DamageBehaviorsSourceEvaluators = SpawnEvaluators();
 	
-	const TArray<FHitRegistratorsSource>& CapsuleHitRegistratorsSources = GetHitRegistratorsSources(DamageBehaviorsSourceEvaluators);
-	for (const FHitRegistratorsSource& CapsuleHitRegistratorsSource : CapsuleHitRegistratorsSources)
+	const TArray<FDBSHitRegistratorsSource>& CapsuleHitRegistratorsSources = GetHitRegistratorsSources(DamageBehaviorsSourceEvaluators);
+	for (const FDBSHitRegistratorsSource& CapsuleHitRegistratorsSource : CapsuleHitRegistratorsSources)
 	{
 		// create DamageBehaviorsSource
 		DamageBehaviorsSources.Add(FDamageBehaviorsSource(CapsuleHitRegistratorsSource.SourceName, CapsuleHitRegistratorsSource.Actor));
 	}
 
-	// TODO перенести это в DamageBehavior
+	// Create a new array for the initialized behaviors
+	TArray<UDamageBehavior*> InitializedBehaviors;
+	InitializedBehaviors.Reserve(DamageBehaviors.Num());
+
+	// Initialize all behaviors first
 	for (UDamageBehavior* DamageBehaviorInstanced : DamageBehaviors)
 	{
 		UDamageBehavior* DamageBehavior = NewObject<UDamageBehavior>(this, DamageBehaviorInstanced->StaticClass());
@@ -61,17 +65,19 @@ void UDamageBehaviorsComponent::BeginPlay()
 			GetOwningActor(),
 			CapsuleHitRegistratorsSources
 		);
-		DamageBehaviors.Add(DamageBehavior);
+		InitializedBehaviors.Add(DamageBehavior);
+	}
 
-		// if (DamageBehaviorInstanced->DamageBehaviorDescription.bAutoHandleDamage)
-		// {
-		// 	DamageBehaviorInstanced->OnHitRegistered.AddUniqueDynamic(this, &UDamageBehaviorsComponent::DefaultProcessHit);
-		// }
+	// Replace the old behaviors with the initialized ones
+	DamageBehaviors = MoveTemp(InitializedBehaviors);
 
-		if (DamageBehaviorInstanced->bInvokeDamageBehaviorOnStart)
+	// Now activate the ones that need to start active
+	for (UDamageBehavior* DamageBehavior : DamageBehaviors)
+	{
+		if (DamageBehavior->bInvokeDamageBehaviorOnStart)
 		{
-			InvokeDamageBehavior(DamageBehaviorInstanced->Name, true, {}, {});
-		}	
+			InvokeDamageBehavior(DamageBehavior->Name, true, {}, {});
+		}
 	}
 }
 
@@ -84,7 +90,7 @@ void UDamageBehaviorsComponent::InvokeDamageBehavior(
 	const FString& DamageBehaviorName,
 	const bool bShouldActivate,
 	const TArray<FString>& DamageBehaviorsSourcesToUse,
-	const TArray<FInstancedStruct>& Payload
+	const FInstancedStruct& Payload
 )
 {
 	TArray<FString> ResultDamageBehaviorsSourcesToUse = DamageBehaviorsSourcesToUse;
@@ -152,13 +158,13 @@ UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehavior(const FString& Nam
 		});;
 }
 
-const TArray<FHitRegistratorsSource> UDamageBehaviorsComponent::GetHitRegistratorsSources(
+const TArray<FDBSHitRegistratorsSource> UDamageBehaviorsComponent::GetHitRegistratorsSources(
 	TArray<UAdditionalDamageBehaviorsSourceEvaluator*> SourceEvaluators_In
 ) const
 {
-	TArray<FHitRegistratorsSource> Result = {};
+	TArray<FDBSHitRegistratorsSource> Result = {};
 	
-	FHitRegistratorsSource OwnerCapsulesSource = {};
+	FDBSHitRegistratorsSource OwnerCapsulesSource = {};
 	OwnerCapsulesSource.SourceName = DEFAULT_DAMAGE_BEHAVIOR_SOURCE;
 	OwnerCapsulesSource.Actor = GetOwner();
 	// TODO: don't need to find TMap only capsules is enough
@@ -173,12 +179,15 @@ const TArray<FHitRegistratorsSource> UDamageBehaviorsComponent::GetHitRegistrato
 		if (SourceEvaluator)
 		{
 			// fill capsules
-			FHitRegistratorsSource CapsulesSource = {};
+			FDBSHitRegistratorsSource CapsulesSource = {};
 			CapsulesSource.SourceName = SourceEvaluator->SourceName;
-			CapsulesSource.Actor = SourceEvaluator->GetActorWithCapsules();
+			CapsulesSource.Actor = SourceEvaluator->GetActorWithCapsules(GetOwningActor());
 			// TODO: don't need to find TMap only capsules is enough
-			FindCapsuleHitRegistrators(CapsulesSource.Actor).GenerateValueArray(CapsulesSource.CapsuleHitRegistrators);
-			Result.Add(CapsulesSource);
+			if (CapsulesSource.Actor)
+			{
+				FindCapsuleHitRegistrators(CapsulesSource.Actor).GenerateValueArray(CapsulesSource.CapsuleHitRegistrators);
+				Result.Add(CapsulesSource);
+			}
 		}
 	}
 
@@ -187,28 +196,33 @@ const TArray<FHitRegistratorsSource> UDamageBehaviorsComponent::GetHitRegistrato
 
 TArray<UAdditionalDamageBehaviorsSourceEvaluator*> UDamageBehaviorsComponent::SpawnEvaluators()
 {
-	TArray<UAdditionalDamageBehaviorsSourceEvaluator*> Result = {};
+    TArray<UAdditionalDamageBehaviorsSourceEvaluator*> Result = {};
 
-	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
-	for (const TSubclassOf<UAdditionalDamageBehaviorsSourceEvaluator> AdditionalCapsulesSourceEvaluator : DamageBehaviorsSystemSettings->AdditionalDamageBehaviorsSourcesEvaluators)
-	{
-		if (AdditionalCapsulesSourceEvaluator)
-		{
-			UAdditionalDamageBehaviorsSourceEvaluator* Evaluator = NewObject<UAdditionalDamageBehaviorsSourceEvaluator>(GetTransientPackage(), AdditionalCapsulesSourceEvaluator->StaticClass());
-			if (Evaluator)
-			{
-				Result.Add(Evaluator);
-			}
-		}
-	}
-	DamageBehaviorsSourceEvaluators = Result;
-	return Result;
+    const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
+    if (!DamageBehaviorsSystemSettings)
+    {
+        return Result;
+    }
+
+    for (const TSubclassOf<UAdditionalDamageBehaviorsSourceEvaluator>& AdditionalCapsulesSourceEvaluator : DamageBehaviorsSystemSettings->AdditionalDamageBehaviorsSourcesEvaluators)
+    {
+        if (AdditionalCapsulesSourceEvaluator)
+        {
+            UAdditionalDamageBehaviorsSourceEvaluator* Evaluator = NewObject<UAdditionalDamageBehaviorsSourceEvaluator>(GetTransientPackage(), AdditionalCapsulesSourceEvaluator);
+            if (Evaluator)
+            {
+                Result.Add(Evaluator);
+            }
+        }
+    }
+    DamageBehaviorsSourceEvaluators = Result;
+    return Result;
 }
 
 // TODO: попытаться вернуть, но хз зач все это можно в DamageBehavior'ах ловить
 // void UDamageBehaviorsComponent::DefaultOnHitAnything(
 // 	const UDamageBehavior* DamageBehavior,
-// 	const FCapsuleHitRegistratorHitResult& GetHitResult, const bool bSpawnFX)
+// 	const FDBSHitRegistratorHitResult& GetHitResult, const bool bSpawnFX)
 // {
 // 	if (bSpawnFX)
 // 	{

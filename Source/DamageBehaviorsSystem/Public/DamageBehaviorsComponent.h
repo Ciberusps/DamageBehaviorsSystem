@@ -17,7 +17,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDamageBehaviorsSystem, Log, All);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDamageBehaviorOnProcessedHit,
 	const UDamageBehavior*, DamageBehavior,
 	const FString, DamageBehaviorName,
-	const FCapsuleHitRegistratorHitResult&, CapsuleHitRegistratorHitResult
+	const FDBSHitRegistratorHitResult&, HitRegistratorHitResult
 );
 
 USTRUCT(BlueprintType)
@@ -58,7 +58,7 @@ public:
 	FString SourceName;
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	AActor* GetActorWithCapsules() const;
+	AActor* GetActorWithCapsules(AActor* OwnerActor) const;
 };
 
 UCLASS(Blueprintable, BlueprintType, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -98,7 +98,7 @@ public:
 		const FString& DamageBehaviorName,
 		const bool bShouldActivate,
 		const TArray<FString>& DamageBehaviorsSourcesToUse,
-		const TArray<FInstancedStruct>& Payload
+		const FInstancedStruct& Payload
 	);
     
     UFUNCTION(BlueprintCallable)
@@ -120,7 +120,7 @@ public:
 	TArray<UAdditionalDamageBehaviorsSourceEvaluator*> GetDamageBehaviorsSourceEvaluators() const { return DamageBehaviorsSourceEvaluators; };
 
 	UFUNCTION()
-	const TArray<FHitRegistratorsSource> GetHitRegistratorsSources(TArray<UAdditionalDamageBehaviorsSourceEvaluator*> SourceEvaluators_In) const;
+	const TArray<FDBSHitRegistratorsSource> GetHitRegistratorsSources(TArray<UAdditionalDamageBehaviorsSourceEvaluator*> SourceEvaluators_In) const;
 	
 protected:
     virtual void BeginPlay() override;

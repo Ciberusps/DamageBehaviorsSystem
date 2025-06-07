@@ -18,6 +18,8 @@ class DAMAGEBEHAVIORSSYSTEM_API UANS_InvokeDamageBehavior : public UAnimNotifySt
 	GENERATED_BODY()
 
 public:
+	UANS_InvokeDamageBehavior();
+	
 #if WITH_EDITOR
 	/** Override this to prevent firing this notify state type in animation editors */
 	virtual bool ShouldFireInEditor() { return false; }
@@ -30,13 +32,16 @@ public:
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
 	// UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Default")
-	// EDamageBehavior DamageBehaviorName = EDamageBehavior::DmgBehDefault;
+	// EDamageBehavior Name = EDamageBehavior::DmgBehDefault;
     UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Default")
-    FString DamageBehaviorName = FString("DmgBehDefault");
+    FString Name = FString("DmgBehDefault");
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Default")
-	TArray<FString> DamageBehaviorSource = { DEFAULT_DAMAGE_BEHAVIOR_SOURCE };
+	TMap<FString, bool> TargetSources;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Default")
-	TArray<FInstancedStruct> Payload;
+	FInstancedStruct Payload;
+
+private:
+	TArray<FString> GetDamageBehaviorSourcesList() const;
 };

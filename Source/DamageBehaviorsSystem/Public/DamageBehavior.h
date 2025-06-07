@@ -10,16 +10,16 @@
 class UCapsuleHitRegistrator;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageBehaviorHitRegistered,
-    const FCapsuleHitRegistratorHitResult&, CapsuleHitRegistratorHitResult,
+    const FDBSHitRegistratorHitResult&, HitRegistratorHitResult,
     const class UDamageBehavior*, DamageBehavior,
     const UCapsuleHitRegistrator*, CapsuleHitRegistrator,
     // TODO: use one InstancedStruct, we can put in one struct another InstancedStructs
     // no need to use TArray
-    const TArray<FInstancedStruct>&, Payload
+    const FInstancedStruct&, Payload
 );
 
 USTRUCT(BlueprintType)
-struct FHitRegistratorsSource
+struct FDBSHitRegistratorsSource
 {
 	GENERATED_BODY()
 
@@ -34,12 +34,12 @@ struct FHitRegistratorsSource
 };
 
 USTRUCT(BlueprintType)
-struct FHitRegistratorsToActivateSource
+struct FDBSHitRegistratorsToActivateSource
 {
 	GENERATED_BODY()
 
-	FHitRegistratorsToActivateSource() = default;
-	FHitRegistratorsToActivateSource(
+	FDBSHitRegistratorsToActivateSource() = default;
+	FDBSHitRegistratorsToActivateSource(
 		FString SourceName_In, TArray<FString> HitRegistratorsNames_In)
 		: SourceName(SourceName_In), HitRegistratorsNames(HitRegistratorsNames_In) {};
 	
@@ -95,30 +95,30 @@ public:
     FString Comment = FString("");
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", DisplayName="HitRegistrators to Activate")
-	TArray<FHitRegistratorsToActivateSource> HitRegistratorsToActivateBySource = {
+	TArray<FDBSHitRegistratorsToActivateSource> HitRegistratorsToActivateBySource = {
 		{ DEFAULT_DAMAGE_BEHAVIOR_SOURCE, {} }
 	};
 	
     UPROPERTY()
-    TArray<FHitRegistratorsSource> HitRegistratorsSources = {};
+    TArray<FDBSHitRegistratorsSource> HitRegistratorsSources = {};
 
 	// TODO now is instanced uobject Init not required, probably constructor required - refactor
     void Init(
     	AActor* Owner_In,
-    	const TArray<FHitRegistratorsSource>& CapsuleHitRegistratorsSources_In = {}
+    	const TArray<FDBSHitRegistratorsSource>& CapsuleHitRegistratorsSources_In = {}
     );
 
 	UFUNCTION(BlueprintNativeEvent)
-    void MakeActive(bool bShouldActivate, const TArray<FInstancedStruct>& Payload);
+    void MakeActive(bool bShouldActivate, const FInstancedStruct& Payload);
     // void MakeActive(bool bShouldActivate, EPhysDamageType OverridePhysDamageType_In);
 
 	// make your checks for IHittableInterface or whatever you check that actor is hittable 
 	UFUNCTION(BlueprintNativeEvent)
-	bool CanGetHit(const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
+	bool CanGetHit(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
 	
 	// Result - is hit should be registered
 	UFUNCTION(BlueprintNativeEvent)
-	bool HandleHit(const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator, TArray<FInstancedStruct>& Payload_Out);
+	bool HandleHit(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator, FInstancedStruct& Payload_Out);
 
 	UFUNCTION(BlueprintNativeEvent)
     void AddHittedActor(AActor* Actor_In, bool bCanBeAttached, bool bAddAttachedActorsToActorAlso);
@@ -162,7 +162,7 @@ private:
     TWeakObjectPtr<AActor> OwnerActor = nullptr;
 
 	UFUNCTION()
-    void ProcessHit(const FCapsuleHitRegistratorHitResult& CapsuleHitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
+    void ProcessHit(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
 
 	AActor* GetRootAttachedActor(AActor* Actor_In) const;
 };

@@ -42,7 +42,7 @@ void FDBSEditorDamageBehaviorDetails::CustomizeChildren(
 	FString SourceName;
 	if (TSharedPtr<IPropertyHandle> NameHandle =
 		StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(
-			FHitRegistratorsToActivateSource, SourceName)))
+			FDBSHitRegistratorsToActivateSource, SourceName)))
 	{
 		NameHandle->GetValue(SourceName);
 	}
@@ -54,7 +54,7 @@ void FDBSEditorDamageBehaviorDetails::CustomizeChildren(
 	// 2) Show the HitRegistratorsNames array using its built-in editor
 	if (TSharedPtr<IPropertyHandle> ArrHandle =
 		StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(
-			FHitRegistratorsToActivateSource, HitRegistratorsNames)))
+			FDBSHitRegistratorsToActivateSource, HitRegistratorsNames)))
 	{
 		StructBuilder.AddProperty(ArrHandle.ToSharedRef())
 			.DisplayName(FText::FromString(SourceName))

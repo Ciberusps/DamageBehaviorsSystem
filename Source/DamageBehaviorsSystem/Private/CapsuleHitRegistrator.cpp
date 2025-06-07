@@ -100,14 +100,14 @@ void UCapsuleHitRegistrator::ProcessHitRegistration()
 		{
 			for (FHitResult& HitResult : HitResults)
 			{
-				FCapsuleHitRegistratorHitResult CapsuleHitRegistratorHitResult;
-				CapsuleHitRegistratorHitResult.HitResult = HitResult;
-				CapsuleHitRegistratorHitResult.HitActor = HitResult.GetActor();
-				CapsuleHitRegistratorHitResult.Direction = Direction;
+				FDBSHitRegistratorHitResult HitRegistratorHitResult;
+				HitRegistratorHitResult.HitResult = HitResult;
+				HitRegistratorHitResult.HitActor = HitResult.GetActor();
+				HitRegistratorHitResult.Direction = Direction;
 				// Default instigator is Character owning capsule, but don't forget to override it if needed
-				CapsuleHitRegistratorHitResult.Instigator = OwnerActor;
-				CapsuleHitRegistratorHitResult.PhysicalSurfaceType = UGameplayStatics::GetSurfaceType(HitResult);
-				OnHitRegistered.Broadcast(CapsuleHitRegistratorHitResult, this);
+				HitRegistratorHitResult.Instigator = OwnerActor;
+				HitRegistratorHitResult.PhysicalSurfaceType = UGameplayStatics::GetSurfaceType(HitResult);
+				OnHitRegistered.Broadcast(HitRegistratorHitResult, this);
 			}
 		}
 	}
@@ -178,13 +178,13 @@ void UCapsuleHitRegistrator::OnBegingOverlap(UPrimitiveComponent* OverlappedComp
 {
 	if (OnHitRegistered.IsBound())
 	{
-		FCapsuleHitRegistratorHitResult CapsuleHitRegistratorHitResult;
-		CapsuleHitRegistratorHitResult.HitResult = SweepResult;
-		CapsuleHitRegistratorHitResult.HitActor = OtherActor;
+		FDBSHitRegistratorHitResult HitRegistratorHitResult;
+		HitRegistratorHitResult.HitResult = SweepResult;
+		HitRegistratorHitResult.HitActor = OtherActor;
 		// Default instigator is Character owning capsule, but don't forget to override it if needed
-		CapsuleHitRegistratorHitResult.Instigator = GetOwner();
-		CapsuleHitRegistratorHitResult.PhysicalSurfaceType = UGameplayStatics::GetSurfaceType(SweepResult);
-		OnHitRegistered.Broadcast(CapsuleHitRegistratorHitResult, this);
+		HitRegistratorHitResult.Instigator = GetOwner();
+		HitRegistratorHitResult.PhysicalSurfaceType = UGameplayStatics::GetSurfaceType(SweepResult);
+		OnHitRegistered.Broadcast(HitRegistratorHitResult, this);
 	}
 }
 

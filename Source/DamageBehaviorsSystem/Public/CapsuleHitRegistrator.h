@@ -9,7 +9,7 @@
 #include "CapsuleHitRegistrator.generated.h"
 
 USTRUCT(BlueprintType)
-struct FCapsuleHitRegistratorHitResult
+struct FDBSHitRegistratorHitResult
 {
 	GENERATED_BODY()
 
@@ -29,7 +29,7 @@ public:
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHitRegistered,
-	const FCapsuleHitRegistratorHitResult&, CapsuleHitRegistratorHitResult,
+	const FDBSHitRegistratorHitResult&, HitRegistratorHitResult,
 	class UCapsuleHitRegistrator*, CapsuleHitRegistrator
 );
 

@@ -37,4 +37,9 @@ struct FDBSHitRegistratorsToActivateSource
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FString> HitRegistratorsNames = {};
+
+	bool operator==(const FString& SourceName_In) const
+	{
+		return SourceName == SourceName_In;
+	}
 };

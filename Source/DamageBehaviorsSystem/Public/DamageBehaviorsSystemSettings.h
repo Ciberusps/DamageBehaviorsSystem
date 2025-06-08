@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ANS_InvokeDamageBehavior.h"
 #include "DamageBehaviorsComponent.h"
 #include "Engine/DeveloperSettingsBackedByCVars.h"
 #include "DamageBehaviorsSystemSettings.generated.h"
@@ -19,11 +20,12 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
 	TArray<TSubclassOf<UDamageBehaviorsSourceEvaluator>> AdditionalDamageBehaviorsSourcesEvaluators = {};
 
-	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings", meta=(AllowAbstract))  
-	TSoftClassPtr<UInterface> HittableInterfaceRef;
-
-	UPROPERTY(config, EditAnywhere, Category="Trace|Collision")
+	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
 	TEnumAsByte<ECollisionChannel> HitRegistratorsTraceChannel;
+
+	// TODO: ActorsBySourceName - RightHandActor, LeftHandActor
+	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
+	TArray<FDBSInvokeDamageBehaviorDebugForMesh> DebugActors = {};
 	
 protected:
 	//~UDeveloperSettings interface

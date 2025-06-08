@@ -9,6 +9,64 @@
 
 class UDamageBehaviorsComponent;
 
+USTRUCT()
+struct FDBSInvokeDamageBehaviorDebugActor
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	FString SourceName;
+	UPROPERTY(EditAnywhere)
+	TSoftClassPtr<AActor> Actor;
+	UPROPERTY(EditAnywhere, meta=(InlineEditConditionToggle))
+	bool bCustomSocketName = false;
+	UPROPERTY(EditAnywhere, meta=(EditCondition="bCustomSocketName"))
+	FName SocketName = "";
+};
+
+USTRUCT()
+struct FDBSInvokeDamageBehaviorDebugForMesh
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	TSoftObjectPtr<USkeletalMesh> Mesh;
+	UPROPERTY(EditAnywhere)
+	TArray<FDBSInvokeDamageBehaviorDebugActor> DebugActors;
+
+	bool operator==(const USkeletalMesh* Mesh_In) const
+	{
+		return Mesh.Get() == Mesh_In;
+	}
+};
+
+// // TODO: this settings should be stored on "ThisActor" DamageBehavior
+// // only on DebugActor should be here as reference to settings
+// // probably its even better to use UDamageBehaviorSettings to not edit MeshComponents at all
+// UCLASS()
+// class UInvokeDamageBehaviorDebugActors : public UAssetUserData
+// {
+// 	GENERATED_BODY()
+// public:
+// 	// TODO: ActorsBySourceName - RightHandActor, LeftHandActor
+// 	UPROPERTY(EditAnywhere, Category="SoftRefs")
+// 	TArray<FDBSInvokeDamageBehaviorDebugForMesh> DebugActors;
+// };
+
+USTRUCT()
+struct FDBSDebugHitRegistratorDescription
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName SocketNameAttached = "";
+	UPROPERTY()
+	float CapsuleRadius = 0.0f;
+	UPROPERTY()
+	float CapsuleHalfHeight = 0.0f;
+};
+
+
 /**
  *
  */
@@ -22,7 +80,7 @@ public:
 	
 #if WITH_EDITOR
 	/** Override this to prevent firing this notify state type in animation editors */
-	virtual bool ShouldFireInEditor() { return false; }
+	virtual bool ShouldFireInEditor() { return true; }
 #endif
 
 	virtual FLinearColor GetEditorColor() override { return FLinearColor(1.0f, 0.491021f, 0.0f); };
@@ -32,6 +90,7 @@ public:
 	// for now its indirect through DamageBehaviorsComponent on MeshOwner
 	// direct invoke requires to spawn DamageBehaviorSourceEvaluator
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
+	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Default")
@@ -44,5 +103,10 @@ public:
 	FInstancedStruct Payload;
 
 private:
+	UPROPERTY()
+	TMap<FString, FDBSDebugHitRegistratorDescription> HitRegistratorsDescription = {};
+	
+	void DrawCapsules(UWorld* WorldContextObject, USkeletalMeshComponent* MeshComp);
+
 	TArray<FString> GetDamageBehaviorSourcesList() const;
 };

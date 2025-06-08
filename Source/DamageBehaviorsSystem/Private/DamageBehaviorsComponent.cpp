@@ -161,7 +161,7 @@ const TArray<FDBSHitRegistratorsSource> UDamageBehaviorsComponent::GetHitRegistr
 
 	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
 	
-	// find capsules on additional Sources
+	// find capsules on additional DebugActors
 	for (const UDamageBehaviorsSourceEvaluator* SourceEvaluator : SourceEvaluators_In)
 	{
 		if (SourceEvaluator)

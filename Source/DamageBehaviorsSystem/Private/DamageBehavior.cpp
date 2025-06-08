@@ -99,7 +99,7 @@ void UDamageBehavior::SyncSourcesFromSettings()
         }
     }
 
-    // 2) Rebuild the Sources array to match DesiredNames exactly
+    // 2) Rebuild the DebugActors array to match DesiredNames exactly
     bool bChanged = false;
     TArray<FDBSHitRegistratorsToActivateSource> NewSources = {};
 

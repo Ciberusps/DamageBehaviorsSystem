@@ -95,7 +95,7 @@ public:
 	// attacks by body parts (hands/footstomps and so on)
     UFUNCTION(BlueprintCallable, meta=(AutoCreateRefTerm="DamageBehaviorsSourcesToUse,Payload"))
 	void InvokeDamageBehavior(
-		const FString& DamageBehaviorName,
+		const FString DamageBehaviorName,
 		const bool bShouldActivate,
 		const TArray<FString>& DamageBehaviorsSourcesToUse,
 		const FInstancedStruct& Payload
@@ -105,7 +105,7 @@ public:
     const TArray<UDamageBehavior*>& GetDamageBehaviors() const { return DamageBehaviors; };
 
     UFUNCTION(BlueprintCallable)
-    UDamageBehavior* GetDamageBehavior(const FString& Name) const;
+    UDamageBehavior* GetDamageBehavior(const FString Name) const;
 
 	// TODO: попытаться вернуть, но хз зач все это можно в DamageBehavior'ах ловить
     // for cases there ProcessHit is custom, e.g. BProjectileComponent, MeleeWeaponItem, ...

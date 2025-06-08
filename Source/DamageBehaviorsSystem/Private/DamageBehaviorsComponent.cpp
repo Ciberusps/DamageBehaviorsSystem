@@ -60,7 +60,7 @@ void UDamageBehaviorsComponent::BeginPlay()
 	// Initialize all behaviors first
 	for (UDamageBehavior* DamageBehaviorInstanced : DamageBehaviors)
 	{
-		UDamageBehavior* DamageBehavior = NewObject<UDamageBehavior>(this, DamageBehaviorInstanced->StaticClass());
+		UDamageBehavior* DamageBehavior = NewObject<UDamageBehavior>(this, DamageBehaviorInstanced->StaticClass(), FName(DamageBehaviorInstanced->Name));
 		DamageBehavior->Init(
 			GetOwningActor(),
 			CapsuleHitRegistratorsSources
@@ -87,18 +87,23 @@ AActor* UDamageBehaviorsComponent::GetOwningActor_Implementation() const
 }
 
 void UDamageBehaviorsComponent::InvokeDamageBehavior(
-	const FString& DamageBehaviorName,
+	const FString DamageBehaviorName,
 	const bool bShouldActivate,
 	const TArray<FString>& DamageBehaviorsSourcesToUse,
 	const FInstancedStruct& Payload
 )
 {
+	if (DamageBehaviorName.IsEmpty())
+	{
+		UE_LOG(LogDamageBehaviorsSystem, Warning, TEXT("UDamageBehaviorsComponent::InvokeDamageBehavior() called with empty DamageBehaviorName"));
+		return;
+	}
+
 	TArray<FString> ResultDamageBehaviorsSourcesToUse = DamageBehaviorsSourcesToUse;
 	if (DamageBehaviorsSourcesToUse.Num() == 0)
 	{
 		ResultDamageBehaviorsSourcesToUse = {
 			DEFAULT_DAMAGE_BEHAVIOR_SOURCE,
-			// DBS_Source_RightHandWeapon
 		};
 	}
 	
@@ -108,54 +113,56 @@ void UDamageBehaviorsComponent::InvokeDamageBehavior(
 //     bIsDebugEnabled = DebugSubsystem->IsCategoryEnabled(EDebugCategory::HitBoxes);
 // #endif
 
-	for (FString BehaviorsSourcesToUse : ResultDamageBehaviorsSourcesToUse)
+	const FString LocalDamageBehaviorName = DamageBehaviorName; // Create a local copy to ensure string stability
+
+	for (const FString& BehaviorsSourcesToUse : ResultDamageBehaviorsSourcesToUse)
 	{
 		FDamageBehaviorsSource* DamageBehaviorsSource = DamageBehaviorsSources.FindByKey(BehaviorsSourcesToUse);
-		if (DamageBehaviorsSource && DamageBehaviorsSource->DamageBehaviorsComponent)
+		if (!DamageBehaviorsSource || !DamageBehaviorsSource->DamageBehaviorsComponent)
 		{
-			if (DamageBehaviorsSource->SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE)
+			continue;
+		}
+
+		if (DamageBehaviorsSource->SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE)
+		{
+			UDamageBehavior* DamageBehavior = GetDamageBehavior(LocalDamageBehaviorName);
+			if (!DamageBehavior)
 			{
-				// TODO: if not exists throw error
-				UDamageBehavior** DamageBehaviorSearch = DamageBehaviors.FindByPredicate(
-				[&](const UDamageBehavior* Behavior)
+				if (bIsDebugEnabled)
 				{
-					return Behavior && Behavior->GetName() == DamageBehaviorName; // or whatever property you're comparing
-				});;
-				UDamageBehavior* DamageBehavior = nullptr;
-				if (DamageBehaviorSearch != nullptr)
-				{
-					DamageBehavior = *DamageBehaviorSearch;
-				}
-				else
-				{
-					if (bIsDebugEnabled)
-					{
-						UE_LOG(LogDamageBehaviorsSystem, Warning, TEXT("UDamageBehaviorsComponent::InvokeDamageBehavior() DamageBehavior \"%s\" not found on character looking for weapon"), *DamageBehaviorName);
-					}
-				}
-				if (DamageBehavior)
-				{
-					DamageBehavior->MakeActive(bShouldActivate, Payload);
+					UE_LOG(LogDamageBehaviorsSystem, Warning, TEXT("UDamageBehaviorsComponent::InvokeDamageBehavior() DamageBehavior \"%s\" not found on character looking for weapon"), *LocalDamageBehaviorName);
 				}
 			}
 			else
 			{
-				DamageBehaviorsSource->DamageBehaviorsComponent->InvokeDamageBehavior(
-					DamageBehaviorName, bShouldActivate,
-					{ DEFAULT_DAMAGE_BEHAVIOR_SOURCE },
-					Payload);	
+				DamageBehavior->MakeActive(bShouldActivate, Payload);
 			}
+		}
+		else if (DamageBehaviorsSource->DamageBehaviorsComponent != this)  // Prevent recursion to self
+		{
+			// When forwarding to another component, we only want to try the default source there
+			// to prevent potential cycles between components
+			DamageBehaviorsSource->DamageBehaviorsComponent->InvokeDamageBehavior(
+				LocalDamageBehaviorName,
+				bShouldActivate,
+				{ DEFAULT_DAMAGE_BEHAVIOR_SOURCE },
+				Payload);
 		}
 	}
 }
 
-UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehavior(const FString& Name) const
+UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehavior(const FString Name) const
 {
-	return *DamageBehaviors.FindByPredicate(
+	UDamageBehavior* const* DamageBehaviorSearch = DamageBehaviors.FindByPredicate(
 		[&](const UDamageBehavior* Behavior)
 		{
-			return Behavior && Behavior->GetName() == Name; // or whatever property you're comparing
-		});;
+			if (!IsValid(Behavior))
+			{
+				return false;
+			}
+			return Behavior->Name == Name;
+		});
+	return DamageBehaviorSearch ? *DamageBehaviorSearch : nullptr;
 }
 
 const TArray<FDBSHitRegistratorsSource> UDamageBehaviorsComponent::GetHitRegistratorsSources(

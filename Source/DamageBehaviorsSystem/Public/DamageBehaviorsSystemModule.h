@@ -4,7 +4,6 @@
 
 #include "Modules/ModuleManager.h"
 
-
 class FDamageBehaviorsSystemModule : public IModuleInterface
 {
 public:

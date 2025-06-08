@@ -33,8 +33,6 @@ public class DamageBehaviorsSystem : ModuleRules
 				"GameplayTags",
 				"GameplayTasks", 
 				
-				"UHLDebugSystem",
-				
 				"DeveloperSettings",
 				
 				"PhysicsCore"
@@ -45,7 +43,6 @@ public class DamageBehaviorsSystem : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"UnrealHelperLibrary"
 			}
 			);
 	}

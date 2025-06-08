@@ -4,7 +4,6 @@
 #include "DamageBehaviorsSource.h"
 
 #include "DamageBehaviorsComponent.h"
-#include "Utils/UnrealHelperLibraryBPL.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageBehaviorsSource)
 

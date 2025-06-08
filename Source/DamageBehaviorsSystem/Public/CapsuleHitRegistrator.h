@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "DamageBehaviorsSystemTypes.h"
-#include "UHLDebugSystemSubsystem.h"
 #include "Components/CapsuleComponent.h"
 #include "CapsuleHitRegistrator.generated.h"
 
@@ -57,12 +56,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Melee hit registration")
     bool bIsHitRegistrationEnabled = false;
 
-    virtual void BeginPlay() override;
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
     FVector PreviousComponentLocation = FVector::ZeroVector;
-    TWeakObjectPtr<UUHLDebugSystemSubsystem> UHLDebugSubsystem;
 	FDamageBehaviorHitDetectionSettings CurrentHitDetectionSettings;
     UPROPERTY()
     TArray<AActor*> IgnoredActors;
@@ -75,4 +72,12 @@ private:
 
 	void OnDebugCategoryChanged(IConsoleVariable* Var);
 	void UpdateCapsuleVisibility(bool bIsVisible_In);
+
+	// full copy of UnrealHelperLibrary TraceUtils function
+	static bool SweepCapsuleMultiByChannel(const UWorld* World, TArray<FHitResult>& OutHits, const FVector& Start,
+		const FVector& End, float Radius, float HalfHeight, const FQuat& Rot,
+		ECollisionChannel TraceChannel, const FCollisionQueryParams& Params,
+		const FCollisionResponseParams& ResponseParam, bool bDrawDebug = false,
+		float DrawTime = -1.0f, FColor TraceColor = FColor::Black,
+		FColor HitColor = FColor::Red, float FailDrawTime = -1.0f);
 };

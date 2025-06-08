@@ -5,24 +5,9 @@
 
 #include "DamageBehaviorsSystemSettings.h"
 #include "Kismet/GameplayStatics.h"
-#include "Utils/UHLTraceUtilsBPL.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CapsuleHitRegistrator)
 
-const TCHAR* DBSHitBoxesCVarName = TEXT("DamageBehaviorsSystem.HitBoxes");
-static TAutoConsoleVariable<int32> CVarDBSHitBoxes(
-	DBSHitBoxesCVarName,
-	0,
-	TEXT("Show hitboxes"),
-	ECVF_Default
-);
-
-static TAutoConsoleVariable<int32> CVarDBSHitBoxesHistory(
-	TEXT("DamageBehaviorsSystem.HitBoxes.History"),
-	0,
-	TEXT("Show hitboxes history"),
-	ECVF_Default
-);
 
 UCapsuleHitRegistrator::UCapsuleHitRegistrator()
 {
@@ -55,8 +40,11 @@ void UCapsuleHitRegistrator::ProcessHitRegistration()
 #if ENABLE_DRAW_DEBUG
 	// TODO: move on DeveloperSettingsBackedByCVars and just check CVar to remove UHLDebugSystemDependency
 	// in UHLDebugSystem just turn on/off CVars to enabled/disable debug
-	bIsDebugEnabled = CVarDBSHitBoxes.GetValueOnAnyThread() != 0;
-	bIsHistoryEnabled = CVarDBSHitBoxesHistory.GetValueOnAnyThread() != 0;
+
+	auto CVarDBSHitBoxes = IConsoleManager::Get().FindConsoleVariable(TEXT("DamageBehaviorsSystem.HitBoxes"));
+	bIsDebugEnabled = CVarDBSHitBoxes ? CVarDBSHitBoxes->GetBool() : false;
+	auto CVarDBSHitBoxesHistory = IConsoleManager::Get().FindConsoleVariable(TEXT("DamageBehaviorsSystem.HitBoxes.History"));
+	bIsHistoryEnabled = CVarDBSHitBoxesHistory ? CVarDBSHitBoxesHistory->GetBool() : false;
 #endif
 
 	FVector CurrentLocation = GetComponentLocation();
@@ -88,7 +76,7 @@ void UCapsuleHitRegistrator::ProcessHitRegistration()
 
 	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
 
-	bool bHasMeleeHit = UUHLTraceUtilsBPL::SweepCapsuleMultiByChannel(
+	bool bHasMeleeHit = SweepCapsuleMultiByChannel(
 		GetWorld(),
 		HitResults,
 		PreviousComponentLocation,
@@ -139,7 +127,7 @@ void UCapsuleHitRegistrator::SetIsHitRegistrationEnabled(bool bIsEnabled_In, FDa
 		case EDamageBehaviorHitDetectionType::ByEntering:
 		{
 			bIsHitRegistrationEnabled = bIsEnabled_In;
-			IConsoleVariable* DBSHitBoxesCVar = IConsoleManager::Get().FindConsoleVariable(DBSHitBoxesCVarName);
+			IConsoleVariable* DBSHitBoxesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("DamageBehaviorsSystem.HitBoxes"));
 			UpdateCapsuleVisibility(DBSHitBoxesCVar && DBSHitBoxesCVar->GetBool());
 
 			if (bIsEnabled_In)
@@ -184,13 +172,6 @@ void UCapsuleHitRegistrator::AddActorsToIgnoreList(const TArray<AActor*>& Actors
     IgnoredActors.Append(Actors_In);
 }
 
-void UCapsuleHitRegistrator::BeginPlay()
-{
-    Super::BeginPlay();
-
-    UHLDebugSubsystem = UGameplayStatics::GetGameInstance(GetWorld())->GetSubsystem<UUHLDebugSystemSubsystem>();
-}
-
 void UCapsuleHitRegistrator::OnBegingOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (OnHitRegistered.IsBound())
@@ -221,4 +202,37 @@ void UCapsuleHitRegistrator::UpdateCapsuleVisibility(bool bIsVisible_In)
 		bool bIsVisible = bIsHitRegistrationEnabled && bIsVisible_In;
 		SetHiddenInGame(!bIsVisible);
 	}
+}
+
+bool UCapsuleHitRegistrator::SweepCapsuleMultiByChannel(const UWorld* World, TArray<FHitResult>& OutHits, const FVector& Start, const FVector& End, float Radius, float HalfHeight, const FQuat& Rot,
+	ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParam, bool bDrawDebug, float DrawTime, FColor TraceColor, FColor HitColor, float FailDrawTime)
+{
+	bool bResult = false;
+
+	FailDrawTime = FailDrawTime == -1.0f ? DrawTime : FailDrawTime;
+
+	FCollisionShape CollisionShape = FCollisionShape::MakeCapsule(Radius, HalfHeight);
+	bResult = World->SweepMultiByChannel(OutHits, Start, End, Rot, TraceChannel, CollisionShape, Params, ResponseParam);
+
+#if ENABLE_DRAW_DEBUG
+	if (bDrawDebug)
+	{
+		DrawDebugCapsule(World, Start, HalfHeight, Radius, Rot, TraceColor, false, bResult ? DrawTime : FailDrawTime);
+		DrawDebugCapsule(World, End, HalfHeight, Radius, Rot, TraceColor, false, bResult ? DrawTime : FailDrawTime);
+		DrawDebugLine(World, Start, End, TraceColor, false, bResult ? DrawTime : FailDrawTime);
+
+		if (bResult)
+		{
+			float Thickness = FMath::Clamp(HalfHeight / 100, 1.25, 5);
+			for (const FHitResult& OutHit : OutHits)
+			{
+				// UUnrealHelperLibraryBPLibrary::DebugPrintStrings(FString::Printf(TEXT("%f"), Thickness));
+				DrawDebugPoint(World, OutHit.ImpactPoint, 10.0f, HitColor, false, DrawTime, 0);
+				DrawDebugCapsule(World, OutHit.Location, HalfHeight, Radius, Rot, TraceColor, false, DrawTime, 0, Thickness);	
+			}
+		}
+	}
+#endif
+
+	return bResult;
 }

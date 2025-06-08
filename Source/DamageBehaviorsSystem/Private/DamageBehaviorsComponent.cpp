@@ -6,7 +6,6 @@
 #include "CapsuleHitRegistrator.h"
 #include "DamageBehaviorsSource.h"
 #include "DamageBehaviorsSystemSettings.h"
-#include "Utils/UnrealHelperLibraryBPL.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageBehaviorsComponent)
 

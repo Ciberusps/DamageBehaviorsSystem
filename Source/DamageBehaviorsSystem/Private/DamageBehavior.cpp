@@ -6,7 +6,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "CapsuleHitRegistrator.h"
 #include "DamageBehaviorsSystemSettings.h"
-#include "Utils/UnrealHelperLibraryBPL.h"
+#include "Engine/SCS_Node.h"
+#include "Engine/SimpleConstructionScript.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageBehavior)
 
@@ -33,8 +34,6 @@ void UDamageBehavior::Init(
 			// TODO: validation failed message
 		}		
 	} 
-
-	DebugSubsystem = UGameplayStatics::GetGameInstance(GetWorld())->GetSubsystem<UUHLDebugSystemSubsystem>();
 }
 
 AActor* UDamageBehavior::GetHitTarget_Implementation(
@@ -157,7 +156,7 @@ TArray<FString> UDamageBehavior::GetHitRegistratorsNameOptions() const
 {
 	TArray<FString> Result = {};
 	UObject* Outer = GetOuter();
-	Result = UUnrealHelperLibraryBPL::GetNamesOfComponentsOnObject(Outer, UCapsuleHitRegistrator::StaticClass());
+	Result = GetNamesOfComponentsOnObject(Outer, UCapsuleHitRegistrator::StaticClass());
 	return Result;
 }
 
@@ -165,13 +164,11 @@ void UDamageBehavior::HandleHitInternally(const FDBSHitRegistratorHitResult& Hit
 {
     if (!bIsActive) return;
 
-	// TODO: return debug
-	// bool bIsDebugEnabled = DebugSubsystem->IsCategoryEnabled(BGameplayTags::FindTagByString(BGameplayTags::TAG_DebugCategory_HitLog));
-	bool bIsDebugEnabled = true;
-	
     AActor* HitActor = HitRegistratorHitResult.HitActor.Get();
     if (!IsValid(HitActor) || this->HitActors.Contains(HitActor)) return;
 
+	auto CVarDBSHitLog = IConsoleManager::Get().FindConsoleVariable(TEXT("DamageBehaviorsSystem.HitLog"));
+	bool bIsDebugEnabled = CVarDBSHitLog ? CVarDBSHitLog->GetBool() : false;
 	if (bIsDebugEnabled && OwnerActor.IsValid())
 	{
 		FString HitActorsStr = "";
@@ -333,4 +330,37 @@ AActor* UDamageBehavior::GetRootAttachedActor(AActor* Actor_In) const
 		Current = Parent;
 	}
 	return Current;
+}
+
+TArray<FString> UDamageBehavior::GetNamesOfComponentsOnObject(UObject* OwnerObject, UClass* Class) const
+{
+	TArray<FString> Result = {};
+
+	UBlueprintGeneratedClass* BlueprintGeneratedClass =
+		OwnerObject->IsA<UBlueprintGeneratedClass>() ? Cast<UBlueprintGeneratedClass>(OwnerObject) : Cast<UBlueprintGeneratedClass>(OwnerObject->GetClass());
+	if (!BlueprintGeneratedClass)
+		return Result;
+
+	TArray<UObject*> DefaultObjectSubobjects;
+	BlueprintGeneratedClass->GetDefaultObjectSubobjects(DefaultObjectSubobjects);
+
+	// Search for ActorComponents created from C++
+	for (UObject* DefaultSubObject : DefaultObjectSubobjects)
+	{
+		if (DefaultSubObject->IsA(Class))
+		{
+			Result.Add(DefaultSubObject->GetName());
+		}
+	}
+
+	// Search for ActorComponents created in Blueprint
+	for (USCS_Node* Node : BlueprintGeneratedClass->SimpleConstructionScript->GetAllNodes())
+	{
+		if (Node->ComponentClass->IsChildOf(Class))
+		{
+			Result.Add(Node->GetVariableName().ToString());
+		}
+	}
+
+	return Result;
 }

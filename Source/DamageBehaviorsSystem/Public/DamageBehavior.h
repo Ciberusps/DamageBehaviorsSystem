@@ -14,12 +14,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageBehaviorHitRegistered,
     const FDBSHitRegistratorHitResult&, HitRegistratorHitResult,
     const class UDamageBehavior*, DamageBehavior,
     const UCapsuleHitRegistrator*, CapsuleHitRegistrator,
-    // TODO: use one InstancedStruct, we can put in one struct another InstancedStructs
-    // no need to use TArray
     const FInstancedStruct&, Payload
 );
 
-// TODO: make instanced UObject
 /**
  * DamageBehavior entity that handles all hits from dumb "CapsuleHitRegistrators"
  * and filter hitted objects by adding them in "HitActors".
@@ -137,12 +134,13 @@ private:
     TArray<TWeakObjectPtr<AActor>> AttachedActors = {}; 
     UPROPERTY()
     bool bIsActive = false;
-	UPROPERTY()
-	TWeakObjectPtr<UUHLDebugSystemSubsystem> DebugSubsystem; 
     TWeakObjectPtr<AActor> OwnerActor = nullptr;
 
 	UFUNCTION()
     void HandleHitInternally(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
 
 	AActor* GetRootAttachedActor(AActor* Actor_In) const;
+
+	// copy of UnrealHelperLibrary function
+	TArray<FString> GetNamesOfComponentsOnObject(UObject* OwnerObject, UClass* Class) const;
 };

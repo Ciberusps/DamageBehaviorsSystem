@@ -9,6 +9,21 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CapsuleHitRegistrator)
 
+const TCHAR* DBSHitBoxesCVarName = TEXT("DamageBehaviorsSystem.HitBoxes");
+static TAutoConsoleVariable<int32> CVarDBSHitBoxes(
+	DBSHitBoxesCVarName,
+	0,
+	TEXT("Show hitboxes"),
+	ECVF_Default
+);
+
+static TAutoConsoleVariable<int32> CVarDBSHitBoxesHistory(
+	TEXT("DamageBehaviorsSystem.HitBoxes.History"),
+	0,
+	TEXT("Show hitboxes history"),
+	ECVF_Default
+);
+
 UCapsuleHitRegistrator::UCapsuleHitRegistrator()
 {
 	PrimaryComponentTick.TickInterval = 0.0f;
@@ -40,10 +55,8 @@ void UCapsuleHitRegistrator::ProcessHitRegistration()
 #if ENABLE_DRAW_DEBUG
 	// TODO: move on DeveloperSettingsBackedByCVars and just check CVar to remove UHLDebugSystemDependency
 	// in UHLDebugSystem just turn on/off CVars to enabled/disable debug
-	bIsDebugEnabled = true;
-	bIsHistoryEnabled = true;
- //    bIsDebugEnabled = UHLDebugSubsystem->IsCategoryEnabled(BGameplayTags::FindTagByString(BGameplayTags::TAG_DebugCategory_HitBoxes));
-	// bIsHistoryEnabled = UHLDebugSubsystem->IsCategoryEnabled(BGameplayTags::FindTagByString(BGameplayTags::TAG_DebugCategory_HitBoxes_History));
+	bIsDebugEnabled = CVarDBSHitBoxes.GetValueOnAnyThread() != 0;
+	bIsHistoryEnabled = CVarDBSHitBoxesHistory.GetValueOnAnyThread() != 0;
 #endif
 
 	FVector CurrentLocation = GetComponentLocation();
@@ -124,8 +137,10 @@ void UCapsuleHitRegistrator::SetIsHitRegistrationEnabled(bool bIsEnabled_In, FDa
 	switch (CurrentHitDetectionSettings.HitDetectionType)
 	{
 		case EDamageBehaviorHitDetectionType::ByEntering:
+		{
 			bIsHitRegistrationEnabled = bIsEnabled_In;
-			UpdateCapsuleVisibility();
+			IConsoleVariable* DBSHitBoxesCVar = IConsoleManager::Get().FindConsoleVariable(DBSHitBoxesCVarName);
+			UpdateCapsuleVisibility(DBSHitBoxesCVar && DBSHitBoxesCVar->GetBool());
 
 			if (bIsEnabled_In)
 			{
@@ -133,13 +148,12 @@ void UCapsuleHitRegistrator::SetIsHitRegistrationEnabled(bool bIsEnabled_In, FDa
 				OnComponentEndOverlap.AddUniqueDynamic(this, &UCapsuleHitRegistrator::OnEndOverlap);
 				SetCollisionProfileName(CurrentHitDetectionSettings.CollisionProfileName.Name);
 
-				// TODO: return debug
-				// UAA_WaitDebugCategoryChange* WaitDebugCategoryChange = UAA_WaitDebugCategoryChange::WaitDebugCategoryChange(
-				// 	GetWorld(),
-				// 	BGameplayTags::FindTagByString(BGameplayTags::TAG_DebugCategory_HitBoxes)
-				// );
-				// WaitDebugCategoryChange->OnChange.AddUniqueDynamic(this, &UCapsuleHitRegistrator::OnDebugCategoryChanged);
-				// WaitDebugCategoryChange->Activate();
+				if (DBSHitBoxesCVar)
+				{
+					DBSHitBoxesCVar->SetOnChangedCallback(
+						FConsoleVariableDelegate::CreateUObject(this, &ThisClass::OnDebugCategoryChanged)
+					);
+				}
 				
 				if (CurrentHitDetectionSettings.bCheckOverlappingActorsOnStart)
 				{
@@ -154,11 +168,14 @@ void UCapsuleHitRegistrator::SetIsHitRegistrationEnabled(bool bIsEnabled_In, FDa
 				SetCollisionProfileName(FName("NoCollision"));
 			}
 			break;
+		}
 		case EDamageBehaviorHitDetectionType::ByTrace:
+		{
 			PreviousComponentLocation = GetComponentLocation();
 			SetComponentTickEnabled(bIsEnabled_In);
 			bIsHitRegistrationEnabled = bIsEnabled_In;
 			break;
+		}
 	}
 }
 
@@ -192,17 +209,16 @@ void UCapsuleHitRegistrator::OnEndOverlap(UPrimitiveComponent* OverlappedCompone
 {
 }
 
-void UCapsuleHitRegistrator::OnDebugCategoryChanged(bool bEnabled)
+void UCapsuleHitRegistrator::OnDebugCategoryChanged(IConsoleVariable* Var)
 {
-	UpdateCapsuleVisibility();
+	UpdateCapsuleVisibility(Var->GetBool());
 }
 
-void UCapsuleHitRegistrator::UpdateCapsuleVisibility()
+void UCapsuleHitRegistrator::UpdateCapsuleVisibility(bool bIsVisible_In)
 {
-	// TODO: return Debug
-	// if (CurrentHitDetectionSettings.HitDetectionType == EDamageBehaviorHitDetectionType::ByEntering)
-	// {
-	// 	bool bIsVisible = bIsHitRegistrationEnabled && UHLDebugSubsystem.IsValid() && UHLDebugSubsystem->IsCategoryEnabled(BGameplayTags::FindTagByString(BGameplayTags::TAG_DebugCategory_HitBoxes));
-	// 	SetHiddenInGame(!bIsVisible);
-	// }
+	if (CurrentHitDetectionSettings.HitDetectionType == EDamageBehaviorHitDetectionType::ByEntering)
+	{
+		bool bIsVisible = bIsHitRegistrationEnabled && bIsVisible_In;
+		SetHiddenInGame(!bIsVisible);
+	}
 }

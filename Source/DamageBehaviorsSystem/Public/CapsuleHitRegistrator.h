@@ -73,7 +73,6 @@ private:
 	UFUNCTION()
 	void OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	UFUNCTION()
-	void OnDebugCategoryChanged(bool bEnabled);
-	void UpdateCapsuleVisibility();
+	void OnDebugCategoryChanged(IConsoleVariable* Var);
+	void UpdateCapsuleVisibility(bool bIsVisible_In);
 };

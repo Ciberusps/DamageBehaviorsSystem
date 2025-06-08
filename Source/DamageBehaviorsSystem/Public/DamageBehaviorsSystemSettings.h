@@ -17,7 +17,7 @@ class DAMAGEBEHAVIORSSYSTEM_API UDamageBehaviorsSystemSettings : public UDevelop
 
 public:
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
-	TArray<TSubclassOf<UAdditionalDamageBehaviorsSourceEvaluator>> AdditionalDamageBehaviorsSourcesEvaluators = {};
+	TArray<TSubclassOf<UDamageBehaviorsSourceEvaluator>> AdditionalDamageBehaviorsSourcesEvaluators = {};
 
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings", meta=(AllowAbstract))  
 	TSoftClassPtr<UInterface> HittableInterfaceRef;

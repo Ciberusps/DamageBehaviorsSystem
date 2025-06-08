@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DamageBehaviorsSource.h"
 #include "DamageBehavior.h"
 #include "CapsuleHitRegistrator.h"
 #include "Components/ActorComponent.h"
@@ -14,52 +15,13 @@ class UCapsuleHitRegistratorUDamageBehavior;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDamageBehaviorsSystem, Log, All);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDamageBehaviorOnProcessedHit,
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FDamageBehaviorOnProcessedHit,
 	const UDamageBehavior*, DamageBehavior,
 	const FString, DamageBehaviorName,
-	const FDBSHitRegistratorHitResult&, HitRegistratorHitResult
+	const FDBSHitRegistratorHitResult&, HitRegistratorHitResult,
+	const UCapsuleHitRegistrator*, CapsuleHitRegistrator,
+	const FInstancedStruct&, Payload
 );
-
-USTRUCT(BlueprintType)
-struct FDamageBehaviorsSource
-{
-	GENERATED_BODY()
-
-	FDamageBehaviorsSource() = default;
-	FDamageBehaviorsSource(FString SourceName_In, AActor* Actor);
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString SourceName;
-	
-	UPROPERTY()
-	AActor* Actor = nullptr;
-
-	UPROPERTY()
-	class UDamageBehaviorsComponent* DamageBehaviorsComponent = nullptr;
-
-	bool operator==(const FDamageBehaviorsSource& Other) const
-	{
-		return SourceName == Other.SourceName;
-	}
-	bool operator==(const FString& Other) const
-	{
-		return SourceName == Other;
-	}
-};
-
-// TODO: move to DamageBehaviorsSystem settings and instantiate only once
-UCLASS(Blueprintable, BlueprintType)
-class DAMAGEBEHAVIORSSYSTEM_API UAdditionalDamageBehaviorsSourceEvaluator : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString SourceName;
-
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	AActor* GetActorWithCapsules(AActor* OwnerActor) const;
-};
 
 UCLASS(Blueprintable, BlueprintType, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DAMAGEBEHAVIORSSYSTEM_API UDamageBehaviorsComponent : public UActorComponent
@@ -71,9 +33,6 @@ public:
 	// DEPRECATED use custom GodreaperDamageBehavior
     UPROPERTY(BlueprintAssignable)
     FDamageBehaviorOnProcessedHit OnHitAnything;
-	// DEPRECATED use custom GodreaperDamageBehavior
-    UPROPERTY(BlueprintAssignable)
-    FDamageBehaviorOnProcessedHit OnHitCharacter;
 
 	UPROPERTY(
 		EditAnywhere,
@@ -108,19 +67,19 @@ public:
     UDamageBehavior* GetDamageBehavior(const FString Name) const;
 
 	// TODO: попытаться вернуть, но хз зач все это можно в DamageBehavior'ах ловить
-    // for cases there ProcessHit is custom, e.g. BProjectileComponent, MeleeWeaponItem, ...
+    // for cases there HandleHitInternally is custom, e.g. BProjectileComponent, MeleeWeaponItem, ...
     // UFUNCTION(BlueprintCallable)
     // void DefaultOnHitAnything(const UDamageBehavior* DamageBehavior, const FGetHitResult& GetHitResult, const bool bSpawnFX = false);
 
 	
 	UFUNCTION()
-	TArray<UAdditionalDamageBehaviorsSourceEvaluator*> SpawnEvaluators();
+	TArray<UDamageBehaviorsSourceEvaluator*> SpawnEvaluators();
 	
 	UFUNCTION()
-	TArray<UAdditionalDamageBehaviorsSourceEvaluator*> GetDamageBehaviorsSourceEvaluators() const { return DamageBehaviorsSourceEvaluators; };
+	TArray<UDamageBehaviorsSourceEvaluator*> GetDamageBehaviorsSourceEvaluators() const { return DamageBehaviorsSourceEvaluators; };
 
 	UFUNCTION()
-	const TArray<FDBSHitRegistratorsSource> GetHitRegistratorsSources(TArray<UAdditionalDamageBehaviorsSourceEvaluator*> SourceEvaluators_In) const;
+	const TArray<FDBSHitRegistratorsSource> GetHitRegistratorsSources(TArray<UDamageBehaviorsSourceEvaluator*> SourceEvaluators_In) const;
 	
 protected:
     virtual void BeginPlay() override;
@@ -139,8 +98,18 @@ private:
     TObjectPtr<AActor> OwnerActor;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UAdditionalDamageBehaviorsSourceEvaluator>> DamageBehaviorsSourceEvaluators = {};
+	TArray<TObjectPtr<UDamageBehaviorsSourceEvaluator>> DamageBehaviorsSourceEvaluators = {};
 
     UFUNCTION()
     TMap<FString, UCapsuleHitRegistrator*> FindCapsuleHitRegistrators(AActor* Actor) const;
+
+	UFUNCTION()
+	void DefaultOnHitAnything(
+		const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
+		const class UDamageBehavior* DamageBehavior,
+		const UCapsuleHitRegistrator* CapsuleHitRegistrator,
+		// TODO: use one InstancedStruct, we can put in one struct another InstancedStructs
+		// no need to use TArray
+		const FInstancedStruct& Payload
+	);
 };

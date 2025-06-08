@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "CapsuleHitRegistrator.h"
+#include "HitRegistratorsSource.h"
 #include "StructUtils/InstancedStruct.h"
 #include "DamageBehavior.generated.h"
 
@@ -18,45 +19,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageBehaviorHitRegistered,
     const FInstancedStruct&, Payload
 );
 
-USTRUCT(BlueprintType)
-struct FDBSHitRegistratorsSource
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString SourceName;
-	
-	UPROPERTY()
-	AActor* Actor = nullptr;
-
-	UPROPERTY()
-	TArray<UCapsuleHitRegistrator*> CapsuleHitRegistrators;
-};
-
-USTRUCT(BlueprintType)
-struct FDBSHitRegistratorsToActivateSource
-{
-	GENERATED_BODY()
-
-	FDBSHitRegistratorsToActivateSource() = default;
-	FDBSHitRegistratorsToActivateSource(
-		FString SourceName_In, TArray<FString> HitRegistratorsNames_In)
-		: SourceName(SourceName_In), HitRegistratorsNames(HitRegistratorsNames_In) {};
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString SourceName;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FString> HitRegistratorsNames = {};
-};
-
 // TODO: make instanced UObject
 /**
  * DamageBehavior entity that handles all hits from dumb "CapsuleHitRegistrators"
  * and filter hitted objects by adding them in "HitActors".
  * When "InvokeDamageBehavior" ends, all "HitActors" cleanup
  */
-UCLASS(BlueprintType, DefaultToInstanced, EditInlineNew, AutoExpandCategories = ("Default,DamageBehavior"), meta=(DisplayName=""))
+UCLASS(Blueprintable, BlueprintType, DefaultToInstanced, EditInlineNew, AutoExpandCategories = ("Default,DamageBehavior"), meta=(DisplayName=""))
 class DAMAGEBEHAVIORSSYSTEM_API UDamageBehavior : public UObject
 {
     GENERATED_BODY()
@@ -112,19 +81,30 @@ public:
     void MakeActive(bool bShouldActivate, const FInstancedStruct& Payload);
     // void MakeActive(bool bShouldActivate, EPhysDamageType OverridePhysDamageType_In);
 
+	// by default HitTarget is most top actor in "attach" hierarchy
+	// TODO: probably in GrabAttacks it might cause problems
+	UFUNCTION(BlueprintNativeEvent)
+	AActor* GetHitTarget(AActor* HitActor_In, const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator) const;
+
+	// ex. CanGetHit
+	// if can - added to hitted actors array and should be ignored by other capsules in DamageBehavior
 	// make your checks for IHittableInterface or whatever you check that actor is hittable 
 	UFUNCTION(BlueprintNativeEvent)
-	bool CanGetHit(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
-	
+	bool CanBeAddedToHittedActors(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
+
+	// Main function for ProcessingHit, if you lasy use OnHitRegistered
 	// Result - is hit should be registered
 	UFUNCTION(BlueprintNativeEvent)
-	bool HandleHit(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator, FInstancedStruct& Payload_Out);
+	bool ProcessHit(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator, FInstancedStruct& Payload_Out);
 
 	UFUNCTION(BlueprintNativeEvent)
     void AddHittedActor(AActor* Actor_In, bool bCanBeAttached, bool bAddAttachedActorsToActorAlso);
 
 	UFUNCTION(BlueprintNativeEvent)
     void ClearHittedActors();
+
+	UFUNCTION(BlueprintCallable)
+	AActor* GetOwningActor() const { return OwnerActor.Get(); };
 
 	// TODO: probably not required at all after refactoring
 	TArray<UCapsuleHitRegistrator*> GetCapsuleHitRegistratorsFromAllSources() const;
@@ -162,7 +142,7 @@ private:
     TWeakObjectPtr<AActor> OwnerActor = nullptr;
 
 	UFUNCTION()
-    void ProcessHit(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
+    void HandleHitInternally(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
 
 	AActor* GetRootAttachedActor(AActor* Actor_In) const;
 };

@@ -25,7 +25,7 @@ void UDamageBehavior::Init(
 			for (UCapsuleHitRegistrator* CapsuleHitRegistrator : CapsuleHitRegistratorsSource.CapsuleHitRegistrators)
 			{
 				// TODO check that "AddUniqueDynamic" correctly works
-				CapsuleHitRegistrator->OnHitRegistered.AddUniqueDynamic(this, &UDamageBehavior::ProcessHit);
+				CapsuleHitRegistrator->OnHitRegistered.AddUniqueDynamic(this, &UDamageBehavior::HandleHitInternally);
 			}	
 		}
 		else
@@ -37,6 +37,14 @@ void UDamageBehavior::Init(
 	DebugSubsystem = UGameplayStatics::GetGameInstance(GetWorld())->GetSubsystem<UUHLDebugSystemSubsystem>();
 }
 
+AActor* UDamageBehavior::GetHitTarget_Implementation(
+	AActor* HitActor_In,
+	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
+	UCapsuleHitRegistrator* CapsuleHitRegistrator) const
+{
+	return GetRootAttachedActor(HitActor_In);
+}
+
 TArray<UCapsuleHitRegistrator*> UDamageBehavior::GetCapsuleHitRegistratorsFromAllSources() const
 {
 	TArray<UCapsuleHitRegistrator*> Result = {};
@@ -46,8 +54,6 @@ TArray<UCapsuleHitRegistrator*> UDamageBehavior::GetCapsuleHitRegistratorsFromAl
 	}
 	return Result;
 }
-
-// In DamageBehavior.cpp
 
 #if WITH_EDITOR
 void UDamageBehavior::PostInitProperties()
@@ -84,7 +90,7 @@ void UDamageBehavior::SyncSourcesFromSettings()
     {
         if (EvalClass)
         {
-            if (auto* CDO = EvalClass->GetDefaultObject<UAdditionalDamageBehaviorsSourceEvaluator>())
+            if (auto* CDO = EvalClass->GetDefaultObject<UDamageBehaviorsSourceEvaluator>())
             {
                 if (!CDO->SourceName.IsEmpty())
                 {
@@ -155,8 +161,7 @@ TArray<FString> UDamageBehavior::GetHitRegistratorsNameOptions() const
 	return Result;
 }
 
-
-void UDamageBehavior::ProcessHit(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator)
+void UDamageBehavior::HandleHitInternally(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator)
 {
     if (!bIsActive) return;
 
@@ -201,26 +206,18 @@ void UDamageBehavior::ProcessHit(const FDBSHitRegistratorHitResult& HitRegistrat
 			DebugColor, false, 1, -1);
 	}
 
-	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
-
-	UClass* HittableInterfaceClass = DamageBehaviorsSystemSettings->HittableInterfaceRef.LoadSynchronous();
-	if (!HittableInterfaceClass)
-	{
-		// TODO: error handling
-		return;
-	} 
-	
-	// TODO: looks like this SHOULD BE in HandleHit
-    if (CanGetHit(HitRegistratorHitResult, CapsuleHitRegistrator))
+	AActor* HitTargetActor = HitActor;
+	// TODO: looks like this SHOULD BE in HandleHitInternally
+    if (CanBeAddedToHittedActors(HitRegistratorHitResult, CapsuleHitRegistrator))
     {
     	// UObject* HitTarget = IHittableInterface::Execute_GetHitTarget(HitActor);
-    	UObject* HitTarget = GetRootAttachedActor(HitActor);
-    	if (IsValid(HitTarget) && IsValid(HitActor) && HitTarget != HitActor)
+    	HitTargetActor = GetHitTarget(HitActor, HitRegistratorHitResult, CapsuleHitRegistrator);
+    	if (IsValid(HitTargetActor) && IsValid(HitActor) && HitTargetActor != HitActor)
     	{
     		// HitTarget - это всегда BaseCharacter, поэтому его можно аттачить к капсуле
-    		AActor* HitTargetActor = Cast<AActor>(HitTarget);
     		AddHittedActor(HitTargetActor, true, true);
 
+    		// TODO: remove and test
     		// and current HitActor, mostly it should be attached
     		// but for sure/safety adding explicitly
     		AddHittedActor(HitActor, false, true);
@@ -233,7 +230,7 @@ void UDamageBehavior::ProcessHit(const FDBSHitRegistratorHitResult& HitRegistrat
     }
 
 	FInstancedStruct Payload_Out = {};
-	bool bResult = HandleHit(HitRegistratorHitResult, CapsuleHitRegistrator, Payload_Out);
+	bool bResult = ProcessHit(HitRegistratorHitResult, CapsuleHitRegistrator, Payload_Out);
 
 	if (bResult)
 	{
@@ -277,14 +274,14 @@ void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const FIns
     }
 }
 
-bool UDamageBehavior::CanGetHit_Implementation(
+bool UDamageBehavior::CanBeAddedToHittedActors_Implementation(
 	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
 	UCapsuleHitRegistrator* CapsuleHitRegistrator)
 {
 	return HitRegistratorHitResult.HitActor.IsValid();
 }
 
-bool UDamageBehavior::HandleHit_Implementation(
+bool UDamageBehavior::ProcessHit_Implementation(
 	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
 	UCapsuleHitRegistrator* CapsuleHitRegistrator,
 	FInstancedStruct& Payload_Out)

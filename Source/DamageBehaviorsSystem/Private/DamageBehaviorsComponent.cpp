@@ -4,6 +4,7 @@
 #include "DamageBehaviorsComponent.h"
 
 #include "CapsuleHitRegistrator.h"
+#include "DamageBehaviorsSource.h"
 #include "DamageBehaviorsSystemSettings.h"
 #include "Utils/UnrealHelperLibraryBPL.h"
 
@@ -11,29 +12,6 @@
 
 DEFINE_LOG_CATEGORY(LogDamageBehaviorsSystem);
 
-FDamageBehaviorsSource::FDamageBehaviorsSource(FString SourceName_In, AActor* Actor_In)
-{
-	Actor = Actor_In;
-	SourceName = SourceName_In;
-	
-	if (Actor)
-	{
-		DamageBehaviorsComponent = Actor->FindComponentByClass<UDamageBehaviorsComponent>();
-		if (!DamageBehaviorsComponent)
-		{
-			// TODO: validation error	
-		}
-	}
-	else
-	{
-		// TODO: validation error
-	}
-}
-
-AActor* UAdditionalDamageBehaviorsSourceEvaluator::GetActorWithCapsules_Implementation(AActor* OwnerActor) const
-{
-	return nullptr;
-}
 
 void UDamageBehaviorsComponent::BeginPlay()
 {
@@ -74,6 +52,10 @@ void UDamageBehaviorsComponent::BeginPlay()
 	// Now activate the ones that need to start active
 	for (UDamageBehavior* DamageBehavior : DamageBehaviors)
 	{
+		if (DamageBehavior->bAutoHandleDamage)
+		{
+			DamageBehavior->OnHitRegistered.AddUniqueDynamic(this, &ThisClass::DefaultOnHitAnything);
+		}
 		if (DamageBehavior->bInvokeDamageBehaviorOnStart)
 		{
 			InvokeDamageBehavior(DamageBehavior->Name, true, {}, {});
@@ -166,7 +148,7 @@ UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehavior(const FString Name
 }
 
 const TArray<FDBSHitRegistratorsSource> UDamageBehaviorsComponent::GetHitRegistratorsSources(
-	TArray<UAdditionalDamageBehaviorsSourceEvaluator*> SourceEvaluators_In
+	TArray<UDamageBehaviorsSourceEvaluator*> SourceEvaluators_In
 ) const
 {
 	TArray<FDBSHitRegistratorsSource> Result = {};
@@ -181,7 +163,7 @@ const TArray<FDBSHitRegistratorsSource> UDamageBehaviorsComponent::GetHitRegistr
 	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
 	
 	// find capsules on additional Sources
-	for (const UAdditionalDamageBehaviorsSourceEvaluator* SourceEvaluator : SourceEvaluators_In)
+	for (const UDamageBehaviorsSourceEvaluator* SourceEvaluator : SourceEvaluators_In)
 	{
 		if (SourceEvaluator)
 		{
@@ -201,9 +183,9 @@ const TArray<FDBSHitRegistratorsSource> UDamageBehaviorsComponent::GetHitRegistr
 	return Result;
 }
 
-TArray<UAdditionalDamageBehaviorsSourceEvaluator*> UDamageBehaviorsComponent::SpawnEvaluators()
+TArray<UDamageBehaviorsSourceEvaluator*> UDamageBehaviorsComponent::SpawnEvaluators()
 {
-    TArray<UAdditionalDamageBehaviorsSourceEvaluator*> Result = {};
+    TArray<UDamageBehaviorsSourceEvaluator*> Result = {};
 
     const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
     if (!DamageBehaviorsSystemSettings)
@@ -211,11 +193,11 @@ TArray<UAdditionalDamageBehaviorsSourceEvaluator*> UDamageBehaviorsComponent::Sp
         return Result;
     }
 
-    for (const TSubclassOf<UAdditionalDamageBehaviorsSourceEvaluator>& AdditionalCapsulesSourceEvaluator : DamageBehaviorsSystemSettings->AdditionalDamageBehaviorsSourcesEvaluators)
+    for (const TSubclassOf<UDamageBehaviorsSourceEvaluator>& AdditionalCapsulesSourceEvaluator : DamageBehaviorsSystemSettings->AdditionalDamageBehaviorsSourcesEvaluators)
     {
         if (AdditionalCapsulesSourceEvaluator)
         {
-            UAdditionalDamageBehaviorsSourceEvaluator* Evaluator = NewObject<UAdditionalDamageBehaviorsSourceEvaluator>(GetTransientPackage(), AdditionalCapsulesSourceEvaluator);
+            UDamageBehaviorsSourceEvaluator* Evaluator = NewObject<UDamageBehaviorsSourceEvaluator>(GetTransientPackage(), AdditionalCapsulesSourceEvaluator);
             if (Evaluator)
             {
                 Result.Add(Evaluator);
@@ -225,30 +207,6 @@ TArray<UAdditionalDamageBehaviorsSourceEvaluator*> UDamageBehaviorsComponent::Sp
     DamageBehaviorsSourceEvaluators = Result;
     return Result;
 }
-
-// TODO: попытаться вернуть, но хз зач все это можно в DamageBehavior'ах ловить
-// void UDamageBehaviorsComponent::DefaultOnHitAnything(
-// 	const UDamageBehavior* DamageBehavior,
-// 	const FDBSHitRegistratorHitResult& GetHitResult, const bool bSpawnFX)
-// {
-// 	if (bSpawnFX)
-// 	{
-// 		UBUtilsBPL::SpawnDefaultImpactVFX(
-// 			GetHitResult.GodreaperHitResult,
-// 			GetHitResult.GodreaperHitResult.Instigator.Get(),
-// 			DamageBehavior->DamageBehaviorDescription.ImpactCueTag,
-// 			GetHitResult.GodreaperHitResult.AttackType);
-// 	}
-// 	
-//     if (GetHitResult.bHittableActorGotHit && OnHitAnything.IsBound())
-//     {
-//         OnHitAnything.Broadcast(DamageBehavior, DamageBehavior->Name, GetHitResult.GodreaperHitResult);
-//     }
-//     if (GetHitResult.GodreaperHitResult.bHitCharacter && OnHitCharacter.IsBound())
-//     {
-//         OnHitCharacter.Broadcast(DamageBehavior, DamageBehavior->Name, GetHitResult.GodreaperHitResult);
-//     }
-// }
 
 TMap<FString, UCapsuleHitRegistrator*> UDamageBehaviorsComponent::FindCapsuleHitRegistrators(AActor* Actor) const
 {
@@ -289,5 +247,19 @@ void UDamageBehaviorsComponent::SyncAllBehaviorSources()
 		{
 			Behavior->SyncSourcesFromSettings();
 		}
+	}
+}
+
+void UDamageBehaviorsComponent::DefaultOnHitAnything(
+	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
+	const class UDamageBehavior* DamageBehavior,
+	const UCapsuleHitRegistrator* CapsuleHitRegistrator,
+	// TODO: use one InstancedStruct, we can put in one struct another InstancedStructs
+	// no need to use TArray
+	const FInstancedStruct& Payload)
+{
+	if (OnHitAnything.IsBound())
+	{
+		OnHitAnything.Broadcast(DamageBehavior, DamageBehavior->Name, HitRegistratorHitResult, CapsuleHitRegistrator, Payload);
 	}
 }

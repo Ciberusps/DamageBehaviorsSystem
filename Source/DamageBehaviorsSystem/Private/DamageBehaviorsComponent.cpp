@@ -33,7 +33,7 @@ void UDamageBehaviorsComponent::BeginPlay()
 	// Create a new array for the initialized behaviors
 	TArray<UDamageBehavior*> InitializedBehaviors;
 	InitializedBehaviors.Reserve(DamageBehaviors.Num());
-
+	
 	// Initialize all behaviors first
 	for (UDamageBehavior* DamageBehaviorInstanced : DamageBehaviors)
 	{
@@ -44,13 +44,17 @@ void UDamageBehaviorsComponent::BeginPlay()
 		);
 		InitializedBehaviors.Add(DamageBehavior);
 	}
-
+	
 	// Replace the old behaviors with the initialized ones
 	DamageBehaviors = MoveTemp(InitializedBehaviors);
 
 	// Now activate the ones that need to start active
 	for (UDamageBehavior* DamageBehavior : DamageBehaviors)
 	{
+		DamageBehavior->Init(
+			GetOwningActor(),
+			CapsuleHitRegistratorsSources
+		);
 		if (DamageBehavior->bAutoHandleDamage)
 		{
 			DamageBehavior->OnHitRegistered.AddUniqueDynamic(this, &ThisClass::DefaultOnHitAnything);
@@ -223,7 +227,6 @@ TMap<FString, UCapsuleHitRegistrator*> UDamageBehaviorsComponent::FindCapsuleHit
 	return Result;
 }
 
-#if WITH_EDITOR
 void UDamageBehaviorsComponent::PostLoad()
 {
 	Super::PostLoad();
@@ -236,7 +239,6 @@ void UDamageBehaviorsComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	// Whenever anything changes, re-sync all behaviors
 	SyncAllBehaviorSources();
 }
-#endif
 
 void UDamageBehaviorsComponent::SyncAllBehaviorSources()
 {

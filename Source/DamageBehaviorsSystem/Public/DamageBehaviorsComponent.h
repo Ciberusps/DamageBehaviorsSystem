@@ -29,8 +29,6 @@ class DAMAGEBEHAVIORSSYSTEM_API UDamageBehaviorsComponent : public UActorCompone
 	GENERATED_BODY()
 
 public:
-    // TODO PhysMaterial like in MeleeWeaponItem
-	// DEPRECATED use custom GodreaperDamageBehavior
     UPROPERTY(BlueprintAssignable)
     FDamageBehaviorOnProcessedHit OnHitAnything;
 
@@ -84,10 +82,8 @@ public:
 protected:
     virtual void BeginPlay() override;
 
-#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;
-#endif
 	void SyncAllBehaviorSources();
 
 	UPROPERTY()

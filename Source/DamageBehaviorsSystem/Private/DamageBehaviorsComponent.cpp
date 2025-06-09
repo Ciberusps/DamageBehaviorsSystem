@@ -253,8 +253,6 @@ void UDamageBehaviorsComponent::DefaultOnHitAnything(
 	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
 	const class UDamageBehavior* DamageBehavior,
 	const UCapsuleHitRegistrator* CapsuleHitRegistrator,
-	// TODO: use one InstancedStruct, we can put in one struct another InstancedStructs
-	// no need to use TArray
 	const FInstancedStruct& Payload)
 {
 	if (OnHitAnything.IsBound())

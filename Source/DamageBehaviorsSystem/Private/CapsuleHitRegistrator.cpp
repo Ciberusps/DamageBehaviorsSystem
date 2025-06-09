@@ -38,9 +38,6 @@ void UCapsuleHitRegistrator::ProcessHitRegistration()
 	bool bIsDebugEnabled = false;
 	bool bIsHistoryEnabled = false;
 #if ENABLE_DRAW_DEBUG
-	// TODO: move on DeveloperSettingsBackedByCVars and just check CVar to remove UHLDebugSystemDependency
-	// in UHLDebugSystem just turn on/off CVars to enabled/disable debug
-
 	auto CVarDBSHitBoxes = IConsoleManager::Get().FindConsoleVariable(TEXT("DamageBehaviorsSystem.HitBoxes"));
 	bIsDebugEnabled = CVarDBSHitBoxes ? CVarDBSHitBoxes->GetBool() : false;
 	auto CVarDBSHitBoxesHistory = IConsoleManager::Get().FindConsoleVariable(TEXT("DamageBehaviorsSystem.HitBoxes.History"));
@@ -84,7 +81,6 @@ void UCapsuleHitRegistrator::ProcessHitRegistration()
 		GetScaledCapsuleRadius(),
 		GetScaledCapsuleHalfHeight(),
 		GetComponentRotation().Quaternion(),
-		// TODO replace by ECC_Melee later and remove ECC_MeleeAndSurfaces if all workes fine
 		DamageBehaviorsSystemSettings->HitRegistratorsTraceChannel,
 		CollisionParams,
 		FCollisionResponseParams::DefaultResponseParam,

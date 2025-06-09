@@ -204,7 +204,6 @@ void UDamageBehavior::HandleHitInternally(const FDBSHitRegistratorHitResult& Hit
 	}
 
 	AActor* HitTargetActor = HitActor;
-	// TODO: looks like this SHOULD BE in HandleHitInternally
     if (CanBeAddedToHittedActors(HitRegistratorHitResult, CapsuleHitRegistrator))
     {
     	// UObject* HitTarget = IHittableInterface::Execute_GetHitTarget(HitActor);

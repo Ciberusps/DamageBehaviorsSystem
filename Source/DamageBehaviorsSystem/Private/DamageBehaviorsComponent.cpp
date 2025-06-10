@@ -37,6 +37,8 @@ void UDamageBehaviorsComponent::BeginPlay()
 	// Initialize all behaviors first
 	for (UDamageBehavior* DamageBehaviorInstanced : DamageBehaviors)
 	{
+		if (!DamageBehaviorInstanced) continue;
+
 		UDamageBehavior* DamageBehavior = NewObject<UDamageBehavior>(this, DamageBehaviorInstanced->StaticClass(), FName(DamageBehaviorInstanced->Name));
 		DamageBehavior->Init(
 			GetOwningActor(),
@@ -51,10 +53,6 @@ void UDamageBehaviorsComponent::BeginPlay()
 	// Now activate the ones that need to start active
 	for (UDamageBehavior* DamageBehavior : DamageBehaviors)
 	{
-		DamageBehavior->Init(
-			GetOwningActor(),
-			CapsuleHitRegistratorsSources
-		);
 		if (DamageBehavior->bAutoHandleDamage)
 		{
 			DamageBehavior->OnHitRegistered.AddUniqueDynamic(this, &ThisClass::DefaultOnHitAnything);

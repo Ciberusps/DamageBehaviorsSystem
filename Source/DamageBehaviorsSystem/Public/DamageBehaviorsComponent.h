@@ -32,14 +32,26 @@ public:
     UPROPERTY(BlueprintAssignable)
     FDamageBehaviorOnProcessedHit OnHitAnything;
 
+	// EditDefaultsOnly used on purpose we don't want to have bugs related to
+	// blueprint instances placed in world(on the map), unreal sometimes don't
+	// reset values to defaults in blueprint even if you not changed them
+	// so better to just give ONLY one way to use
+	// DamageBehaviorsComponent - by modifing Blueprint Defaults and if you need runtime
+	// DamageBehaviors creation - use DamageBehaviorsComponent api to add them
+	// IF you want to override some DamageDescriptions or whatever
+	// just
+	// - create new Array with overrides
+	// - or hide overriding under flag bOverrideDamageBehaviorsDefaults
+	// - or create validation that checks that
+	//	 Blueprint defaults not match in-world Instance defaults
 	UPROPERTY(
-		EditAnywhere,
+		EditDefaultsOnly,
 		BlueprintReadWrite,
 		Instanced,
 		Category="DamageBehaviorsComponent",
 		meta=(TitleProperty="Name", ShowOnlyInnerProperties)
 	)
-	TArray<UDamageBehavior*> DamageBehaviors;
+	TArray<TObjectPtr<UDamageBehavior>> DamageBehaviors;
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
     AActor* GetOwningActor() const;

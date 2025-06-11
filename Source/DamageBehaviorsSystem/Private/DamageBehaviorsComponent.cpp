@@ -30,29 +30,16 @@ void UDamageBehaviorsComponent::BeginPlay()
 		DamageBehaviorsSources.Add(FDamageBehaviorsSource(CapsuleHitRegistratorsSource.SourceName, CapsuleHitRegistratorsSource.Actor));
 	}
 
-	// Create a new array for the initialized behaviors
-	TArray<UDamageBehavior*> InitializedBehaviors;
-	InitializedBehaviors.Reserve(DamageBehaviors.Num());
-	
-	// Initialize all behaviors first
-	for (UDamageBehavior* DamageBehaviorInstanced : DamageBehaviors)
+	// Now activate the ones that need to start active
+	for (UDamageBehavior* DamageBehavior : DamageBehaviorsList)
 	{
-		if (!DamageBehaviorInstanced) continue;
+		if (!DamageBehavior) continue;
 
-		UDamageBehavior* DamageBehavior = NewObject<UDamageBehavior>(this, DamageBehaviorInstanced->StaticClass(), FName(DamageBehaviorInstanced->Name));
 		DamageBehavior->Init(
 			GetOwningActor(),
 			CapsuleHitRegistratorsSources
 		);
-		InitializedBehaviors.Add(DamageBehavior);
-	}
-	
-	// Replace the old behaviors with the initialized ones
-	DamageBehaviors = MoveTemp(InitializedBehaviors);
-
-	// Now activate the ones that need to start active
-	for (UDamageBehavior* DamageBehavior : DamageBehaviors)
-	{
+		
 		if (DamageBehavior->bAutoHandleDamage)
 		{
 			DamageBehavior->OnHitRegistered.AddUniqueDynamic(this, &ThisClass::DefaultOnHitAnything);
@@ -136,7 +123,7 @@ void UDamageBehaviorsComponent::InvokeDamageBehavior(
 
 UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehavior(const FString Name) const
 {
-	UDamageBehavior* const* DamageBehaviorSearch = DamageBehaviors.FindByPredicate(
+	TObjectPtr<UDamageBehavior> const* DamageBehaviorSearch = DamageBehaviorsList.FindByPredicate(
 		[&](const UDamageBehavior* Behavior)
 		{
 			if (!IsValid(Behavior))
@@ -240,7 +227,7 @@ void UDamageBehaviorsComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 void UDamageBehaviorsComponent::SyncAllBehaviorSources()
 {
-	for (UDamageBehavior* Behavior : DamageBehaviors)
+	for (UDamageBehavior* Behavior : DamageBehaviorsList)
 	{
 		if (Behavior)
 		{

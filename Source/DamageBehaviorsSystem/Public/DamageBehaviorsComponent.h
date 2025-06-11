@@ -44,14 +44,23 @@ public:
 	// - or hide overriding under flag bOverrideDamageBehaviorsDefaults
 	// - or create validation that checks that
 	//	 Blueprint defaults not match in-world Instance defaults
+	// UPD 11.06.25 it was unreal serialization problem
+	// I used same variable name for DamageBehaviors (it was TMap<TString, ...>)
+	// so all instances of blueprints already had this property serialized ofc
+	// and every time I changed DamageBehavior in blueprint
+	// it ofc not synced to instances because they have this property
+	// and its not null its contains TMap values thats why DamageBehaviors
+	// never gets reseted/synced to blueprint defaults
+	// DON't rename to DamageBehaviors
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadWrite,
 		Instanced,
 		Category="DamageBehaviorsComponent",
+		DisplayName="DamageBehaviors",
 		meta=(TitleProperty="Name", ShowOnlyInnerProperties)
 	)
-	TArray<TObjectPtr<UDamageBehavior>> DamageBehaviors;
+	TArray<TObjectPtr<UDamageBehavior>> DamageBehaviorsList;
 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
     AActor* GetOwningActor() const;
@@ -71,7 +80,7 @@ public:
 	);
     
     UFUNCTION(BlueprintCallable)
-    const TArray<UDamageBehavior*>& GetDamageBehaviors() const { return DamageBehaviors; };
+    const TArray<UDamageBehavior*>& GetDamageBehaviors() const { return DamageBehaviorsList; };
 
     UFUNCTION(BlueprintCallable)
     UDamageBehavior* GetDamageBehavior(const FString Name) const;

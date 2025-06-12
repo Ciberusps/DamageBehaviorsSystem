@@ -40,10 +40,10 @@ void UDamageBehaviorsComponent::BeginPlay()
 			CapsuleHitRegistratorsSources
 		);
 		
-		if (DamageBehavior->bAutoHandleDamage)
-		{
+		// if (DamageBehavior->bAutoHandleDamage)
+		// {
 			DamageBehavior->OnHitRegistered.AddUniqueDynamic(this, &ThisClass::DefaultOnHitAnything);
-		}
+		// }
 		if (DamageBehavior->bInvokeDamageBehaviorOnStart)
 		{
 			InvokeDamageBehavior(DamageBehavior->Name, true, {}, {});

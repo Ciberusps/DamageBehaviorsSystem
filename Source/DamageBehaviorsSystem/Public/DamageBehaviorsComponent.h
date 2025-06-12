@@ -53,11 +53,15 @@ public:
 	// never gets reseted/synced to blueprint defaults
 	// DON't rename to DamageBehaviors
 	UPROPERTY(
-		EditDefaultsOnly,
+		EditAnywhere,
 		BlueprintReadWrite,
 		Instanced,
+		// Transient,
+		// DuplicateTransient,
 		Category="DamageBehaviorsComponent",
-		DisplayName="DamageBehaviors",
+		// DisplayName="DamageBehaviors",
+		// Export
+		// meta=(BlueprintCompilerGeneratedDefaults)
 		meta=(TitleProperty="Name", ShowOnlyInnerProperties)
 	)
 	TArray<TObjectPtr<UDamageBehavior>> DamageBehaviorsList;
@@ -103,7 +107,9 @@ public:
 protected:
     virtual void BeginPlay() override;
 
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	virtual void PostLoad() override;
 	void SyncAllBehaviorSources();
 

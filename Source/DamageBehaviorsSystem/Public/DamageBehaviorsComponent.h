@@ -44,6 +44,7 @@ public:
 	// - or hide overriding under flag bOverrideDamageBehaviorsDefaults
 	// - or create validation that checks that
 	//	 Blueprint defaults not match in-world Instance defaults
+	//
 	// UPD 11.06.25 it was unreal serialization problem
 	// I used same variable name for DamageBehaviors (it was TMap<TString, ...>)
 	// so all instances of blueprints already had this property serialized ofc
@@ -52,16 +53,20 @@ public:
 	// and its not null its contains TMap values thats why DamageBehaviors
 	// never gets reseted/synced to blueprint defaults
 	// DON't rename to DamageBehaviors
+	//
+	// UPD 13.06.25 - its unreal syncing issue with Instanced TArray/TSet
+	// its also reproduces with MoverV2 epics plugin -> change instanced value in mover component
+	// and it wont be synced on World Instances of this blueprint
+	// FIX - for now its synced in DBSEditor reason why not on PostEditChangeProperty is
+	// when we compile blueprint values gets reseted, tried PostCDOCompiled/PostThisAndThat,
+	// they not even get called on ActorComponents so DBSEditor solution works - stopped on it
+	// for now TODO: check if it still reproduces in UE5.6
 	UPROPERTY(
 		EditAnywhere,
 		BlueprintReadWrite,
 		Instanced,
-		// Transient,
-		// DuplicateTransient,
 		Category="DamageBehaviorsComponent",
-		// DisplayName="DamageBehaviors",
-		// Export
-		// meta=(BlueprintCompilerGeneratedDefaults)
+		DisplayName="DamageBehaviors",
 		meta=(TitleProperty="Name", ShowOnlyInnerProperties)
 	)
 	TArray<TObjectPtr<UDamageBehavior>> DamageBehaviorsList;
@@ -106,10 +111,6 @@ public:
 	
 protected:
     virtual void BeginPlay() override;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 	virtual void PostLoad() override;
 	void SyncAllBehaviorSources();
 

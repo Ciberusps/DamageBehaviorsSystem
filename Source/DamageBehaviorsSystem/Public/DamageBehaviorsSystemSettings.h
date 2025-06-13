@@ -18,7 +18,7 @@ class DAMAGEBEHAVIORSSYSTEM_API UDamageBehaviorsSystemSettings : public UDevelop
 
 public:
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
-	TArray<TSubclassOf<UDamageBehaviorsSourceEvaluator>> AdditionalDamageBehaviorsSourcesEvaluators = {};
+	TArray<TSubclassOf<UDamageBehaviorsSourceEvaluator>> DamageBehaviorsSourcesEvaluators = {};
 
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
 	TEnumAsByte<ECollisionChannel> HitRegistratorsTraceChannel;

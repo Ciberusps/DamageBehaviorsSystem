@@ -85,7 +85,7 @@ void UDamageBehavior::SyncSourcesFromSettings()
 
     // 1) Build the canonical list of source names
     TArray<FString> DesiredNames = { DEFAULT_DAMAGE_BEHAVIOR_SOURCE };
-    for (auto& EvalClass : Settings->AdditionalDamageBehaviorsSourcesEvaluators)
+    for (auto& EvalClass : Settings->DamageBehaviorsSourcesEvaluators)
     {
         if (EvalClass)
         {

@@ -124,6 +124,9 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UDamageBehaviorsSourceEvaluator>> DamageBehaviorsSourceEvaluators = {};
 
+	UFUNCTION()
+	void PrepareDamageBehaviorsSources();
+	
     UFUNCTION()
     TMap<FString, UCapsuleHitRegistrator*> FindCapsuleHitRegistrators(AActor* Actor) const;
 

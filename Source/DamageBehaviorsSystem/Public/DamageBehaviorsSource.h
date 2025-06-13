@@ -12,16 +12,17 @@ struct FDamageBehaviorsSource
 	GENERATED_BODY()
 
 	FDamageBehaviorsSource() = default;
-	FDamageBehaviorsSource(FString SourceName_In, AActor* Actor);
+	FDamageBehaviorsSource(FString SourceName_In, AActor* OwnerActor_In, class UDamageBehaviorsSourceEvaluator* Evaluator_In);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString SourceName;
-	
-	UPROPERTY()
-	AActor* Actor = nullptr;
+
+	AActor* GetSourceActor() const;
+
+	class UDamageBehaviorsComponent* GetDamageBehaviorsComponent() const;
 
 	UPROPERTY()
-	class UDamageBehaviorsComponent* DamageBehaviorsComponent = nullptr;
+	class UDamageBehaviorsSourceEvaluator* Evaluator = nullptr;
 
 	bool operator==(const FDamageBehaviorsSource& Other) const
 	{
@@ -31,6 +32,10 @@ struct FDamageBehaviorsSource
 	{
 		return SourceName == Other;
 	}
+
+private:
+	UPROPERTY()
+	TWeakObjectPtr<AActor> OwnerActor;
 };
 
 // TODO: move to DamageBehaviorsSystem settings and instantiate only once
@@ -44,5 +49,5 @@ public:
 	FString SourceName;
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	AActor* GetActorWithCapsules(AActor* OwnerActor) const;
+	AActor* GetActorWithDamageBehaviors(AActor* OwnerActor) const;
 };

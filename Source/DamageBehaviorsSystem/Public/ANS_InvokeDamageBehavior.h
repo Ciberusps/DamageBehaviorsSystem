@@ -22,6 +22,15 @@ struct FDBSInvokeDamageBehaviorDebugActor
 	bool bCustomSocketName = false;
 	UPROPERTY(EditAnywhere, meta=(EditCondition="bCustomSocketName"))
 	FName SocketName = "";
+
+	void FillData();
+
+	bool IsValid() const { return ActorCDO.IsValid(); }
+
+	TArray<TWeakObjectPtr<UCapsuleHitRegistrator>> HitRegistrators;
+	TMap<TWeakObjectPtr<UCapsuleHitRegistrator>, FName> HitRegistratorsToAttachSocketsList = {};
+	TWeakObjectPtr<AActor> ActorCDO;
+	TWeakObjectPtr<UDamageBehaviorsComponent> DBC;
 };
 
 USTRUCT()
@@ -110,7 +119,12 @@ public:
 
 private:
 	UPROPERTY()
+	TArray<FDBSInvokeDamageBehaviorDebugActor> FilledDebugActors;
+	
+	UPROPERTY()
 	TMap<FString, FDBSDebugHitRegistratorDescription> HitRegistratorsDescription = {};
+
+	FDBSInvokeDamageBehaviorDebugActor GetFilledDebugActor(FString SourceName);
 	
 	void DrawCapsules(UWorld* WorldContextObject, USkeletalMeshComponent* MeshComp);
 

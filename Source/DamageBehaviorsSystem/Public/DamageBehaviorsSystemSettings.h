@@ -27,6 +27,8 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
 	TArray<FDBSInvokeDamageBehaviorDebugForMesh> DebugActors = {};
 
+	// Can't work we always need blueprint with DamageBehaviors to take DamageBehaviors for ThisActor
+	// Works only when enemy don't have weapons and we need to display capsules from default weapons
 	// Fallback debug mesh used when no specific debug actors are found for a mesh
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings", meta=(DisplayName="Fallback Debug Mesh"))
 	FDBSInvokeDamageBehaviorDebugForMesh FallbackDebugMesh;

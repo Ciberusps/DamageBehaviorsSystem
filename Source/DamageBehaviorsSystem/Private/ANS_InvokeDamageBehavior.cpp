@@ -274,7 +274,10 @@ void UANS_InvokeDamageBehavior::NotifyTick(
 	const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
-	DrawCapsules(MeshComp->GetWorld(), MeshComp);
+	if (MeshComp->GetWorld()->IsPreviewWorld())
+	{
+		DrawCapsules(MeshComp->GetWorld(), MeshComp);
+	}
 }
 
 void UANS_InvokeDamageBehavior::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
@@ -284,7 +287,8 @@ void UANS_InvokeDamageBehavior::NotifyEnd(USkeletalMeshComponent* MeshComp, UAni
 	if (MeshComp->GetWorld()->IsPreviewWorld())
 	{
 		DrawCapsules(MeshComp->GetWorld(), MeshComp);
-		HitRegistratorsDescription= {};
+		FilledDebugActors = {};
+		HitRegistratorsDescription = {};
 	}
 	else
 	{
@@ -296,9 +300,6 @@ void UANS_InvokeDamageBehavior::NotifyEnd(USkeletalMeshComponent* MeshComp, UAni
 	
 		DmgBehaviorComponent->InvokeDamageBehavior(Name, false, GetDamageBehaviorSourcesList(), Payload);	
 	}
-
-	FilledDebugActors = {};
-	HitRegistratorsDescription = {};
 }
 
 TArray<FString> UANS_InvokeDamageBehavior::GetDamageBehaviorSourcesList() const

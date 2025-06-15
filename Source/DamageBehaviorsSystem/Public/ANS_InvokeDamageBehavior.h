@@ -79,6 +79,9 @@ struct FDBSDebugHitRegistratorDescription
 	float CapsuleRadius = 0.0f;
 	UPROPERTY()
 	float CapsuleHalfHeight = 0.0f;
+
+	UPROPERTY()
+	FLinearColor Color = FLinearColor(1.0f, 0.491021f, 0.0f);
 };
 
 

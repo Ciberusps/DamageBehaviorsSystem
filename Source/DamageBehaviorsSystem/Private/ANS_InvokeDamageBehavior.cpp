@@ -238,6 +238,7 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 							HitRegistratorDescription.Rotation = HitReg->GetRelativeRotation();
 							HitRegistratorDescription.CapsuleRadius = HitReg->GetScaledCapsuleRadius();
 							HitRegistratorDescription.CapsuleHalfHeight = HitReg->GetScaledCapsuleHalfHeight();
+							HitRegistratorDescription.Color = HitReg->ShapeColor;
 							HitRegistratorsDescription.Add(DebugActorForHitRegistrator.SourceName, HitRegistratorDescription);
 						}
 					}
@@ -325,13 +326,17 @@ void UANS_InvokeDamageBehavior::DrawCapsules(UWorld* WorldContextObject, USkelet
 		FVector SocketLocation = MeshComp->GetSocketLocation(SocketName);
 		FRotator SocketRotation = MeshComp->GetSocketRotation(SocketName);
 		
+		// First rotate by socket rotation, then apply the component's local rotation
+		FRotator FinalRotation = SocketRotation + RegistratorsDescription.Value.Rotation;
+		FVector FinalLocation = SocketLocation + FinalRotation.RotateVector(RegistratorsDescription.Value.Location);
+		
 		DrawDebugCapsule(
 			WorldContextObject,
-			SocketLocation + RegistratorsDescription.Value.Location,
+			FinalLocation,
 			RegistratorsDescription.Value.CapsuleHalfHeight,
 			RegistratorsDescription.Value.CapsuleRadius,
-			(SocketRotation + RegistratorsDescription.Value.Rotation).Quaternion(),
-			FLinearColor(1.0f, 0.491021f, 0.0f).ToFColor(true),
+			FinalRotation.Quaternion(),
+			RegistratorsDescription.Value.Color.ToFColor(true),
 			false,
 			0,
 			0,

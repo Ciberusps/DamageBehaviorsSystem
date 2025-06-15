@@ -189,10 +189,18 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 	{
 		const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
 		const FDBSInvokeDamageBehaviorDebugForMesh* InvokeDamageBehaviorDebugForMeshSearch = DamageBehaviorsSystemSettings->DebugActors.FindByKey(MeshComp->GetSkeletalMeshAsset());
-		if (!InvokeDamageBehaviorDebugForMeshSearch) return;
 		
-		const FDBSInvokeDamageBehaviorDebugForMesh& InvokeDamageBehaviorDebugForMesh = *InvokeDamageBehaviorDebugForMeshSearch;
-		FilledDebugActors = InvokeDamageBehaviorDebugForMesh.DebugActors;
+		// If no specific debug actors found for this mesh, use the fallback mesh
+		if (!InvokeDamageBehaviorDebugForMeshSearch)
+		{
+			FilledDebugActors = DamageBehaviorsSystemSettings->FallbackDebugMesh.DebugActors;
+		}
+		else
+		{
+			const FDBSInvokeDamageBehaviorDebugForMesh& InvokeDamageBehaviorDebugForMesh = *InvokeDamageBehaviorDebugForMeshSearch;
+			FilledDebugActors = InvokeDamageBehaviorDebugForMesh.DebugActors;
+		}
+		
 		if (FilledDebugActors.IsEmpty()) return;
 		
 		TArray<FString> DamageBehaviorsSourcesList = GetDamageBehaviorSourcesList();
@@ -239,6 +247,7 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 							HitRegistratorDescription.CapsuleRadius = HitReg->GetScaledCapsuleRadius();
 							HitRegistratorDescription.CapsuleHalfHeight = HitReg->GetScaledCapsuleHalfHeight();
 							HitRegistratorDescription.Color = HitReg->ShapeColor;
+							HitRegistratorDescription.Thickness = HitReg->GetLineThickness();
 							HitRegistratorsDescription.Add(DebugActorForHitRegistrator.SourceName, HitRegistratorDescription);
 						}
 					}
@@ -320,6 +329,9 @@ FDBSInvokeDamageBehaviorDebugActor UANS_InvokeDamageBehavior::GetFilledDebugActo
 void UANS_InvokeDamageBehavior::DrawCapsules(UWorld* WorldContextObject, USkeletalMeshComponent* MeshComp)
 {
 	TMap<FString, FDBSDebugHitRegistratorDescription> LocalHitRegistratorsDescription = HitRegistratorsDescription;
+	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
+	const bool bUsingFallback = !DamageBehaviorsSystemSettings->DebugActors.FindByKey(MeshComp->GetSkeletalMeshAsset());
+
 	for (TPair<FString, FDBSDebugHitRegistratorDescription> RegistratorsDescription : LocalHitRegistratorsDescription)
 	{
 		FName SocketName = RegistratorsDescription.Value.SocketNameAttached;
@@ -330,6 +342,7 @@ void UANS_InvokeDamageBehavior::DrawCapsules(UWorld* WorldContextObject, USkelet
 		FRotator FinalRotation = SocketRotation + RegistratorsDescription.Value.Rotation;
 		FVector FinalLocation = SocketLocation + FinalRotation.RotateVector(RegistratorsDescription.Value.Location);
 		
+		// Draw each frame without persistence to handle pauses correctly
 		DrawDebugCapsule(
 			WorldContextObject,
 			FinalLocation,
@@ -337,10 +350,54 @@ void UANS_InvokeDamageBehavior::DrawCapsules(UWorld* WorldContextObject, USkelet
 			RegistratorsDescription.Value.CapsuleRadius,
 			FinalRotation.Quaternion(),
 			RegistratorsDescription.Value.Color.ToFColor(true),
-			false,
-			0,
-			0,
-			1
+			false,  // bPersistentLines - redraw each tick instead
+			-1.0f,  // LifeTime - will be cleared next frame
+			0,      // DepthPriority
+			RegistratorsDescription.Value.Thickness  // Use the component's shape thickness
 		);
+
+		if (bUsingFallback)
+		{
+			// Draw a "F" letter above the capsule to indicate fallback
+			const float TextHeight = 20.0f;
+			const float TextWidth = 10.0f;
+			const FVector TextBase = FinalLocation + FVector(0, 0, RegistratorsDescription.Value.CapsuleHalfHeight + 20.0f);
+			
+			// Vertical line of F
+			DrawDebugLine(
+				WorldContextObject,
+				TextBase,
+				TextBase + FVector(0, 0, TextHeight),
+				FColor::Yellow,
+				false,  // bPersistentLines
+				-1.0f,  // LifeTime
+				0,      // DepthPriority
+				2.0f    // Thickness
+			);
+			
+			// Top horizontal line of F
+			DrawDebugLine(
+				WorldContextObject,
+				TextBase + FVector(0, 0, TextHeight),
+				TextBase + FVector(TextWidth, 0, TextHeight),
+				FColor::Yellow,
+				false,
+				-1.0f,
+				0,
+				2.0f
+			);
+			
+			// Middle horizontal line of F
+			DrawDebugLine(
+				WorldContextObject,
+				TextBase + FVector(0, 0, TextHeight * 0.6f),
+				TextBase + FVector(TextWidth * 0.8f, 0, TextHeight * 0.6f),
+				FColor::Yellow,
+				false,
+				-1.0f,
+				0,
+				2.0f
+			);
+		}
 	}	
 }

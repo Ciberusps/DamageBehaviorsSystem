@@ -18,14 +18,18 @@ class DAMAGEBEHAVIORSSYSTEM_API UDamageBehaviorsSystemSettings : public UDevelop
 
 public:
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
-	TArray<TSubclassOf<UDamageBehaviorsSourceEvaluator>> DamageBehaviorsSourcesEvaluators = {};
-
-	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
 	TEnumAsByte<ECollisionChannel> HitRegistratorsTraceChannel;
+	
+	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
+	TArray<TSubclassOf<UDamageBehaviorsSourceEvaluator>> DamageBehaviorsSourcesEvaluators = {};
 
 	// TODO: ActorsBySourceName - RightHandActor, LeftHandActor
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
 	TArray<FDBSInvokeDamageBehaviorDebugForMesh> DebugActors = {};
+
+	// Fallback debug mesh used when no specific debug actors are found for a mesh
+	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings", meta=(DisplayName="Fallback Debug Mesh"))
+	FDBSInvokeDamageBehaviorDebugForMesh FallbackDebugMesh;
 	
 protected:
 	//~UDeveloperSettings interface

@@ -82,6 +82,9 @@ struct FDBSDebugHitRegistratorDescription
 
 	UPROPERTY()
 	FLinearColor Color = FLinearColor(1.0f, 0.491021f, 0.0f);
+
+	UPROPERTY()
+	float Thickness = 2.0f;  // Default thickness if not set by component
 };
 
 

@@ -52,6 +52,9 @@ public:
     UFUNCTION(BlueprintCallable)
     void AddActorsToIgnoreList(const TArray<AActor*>& Actors_In);
 
+	UFUNCTION(BlueprintCallable)
+	float GetLineThickness() const { return LineThickness; };
+	
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Melee hit registration")
     bool bIsHitRegistrationEnabled = false;

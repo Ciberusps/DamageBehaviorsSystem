@@ -102,6 +102,7 @@ public:
 #if WITH_EDITOR
 	/** Override this to prevent firing this notify state type in animation editors */
 	virtual bool ShouldFireInEditor() { return true; }
+	virtual void ConditionalDebugDraw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const;
 #endif
 
 	virtual FLinearColor GetEditorColor() override { return FLinearColor(1.0f, 0.491021f, 0.0f); };

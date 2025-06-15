@@ -274,7 +274,12 @@ void UANS_InvokeDamageBehavior::NotifyTick(
 	const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
-	DrawCapsules(MeshComp->GetWorld(), MeshComp);
+	
+	// Only draw debug shapes in editor preview
+	if (MeshComp->GetWorld()->IsPreviewWorld())
+	{
+		DrawCapsules(MeshComp->GetWorld(), MeshComp);
+	}
 }
 
 void UANS_InvokeDamageBehavior::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
@@ -401,3 +406,81 @@ void UANS_InvokeDamageBehavior::DrawCapsules(UWorld* WorldContextObject, USkelet
 		}
 	}	
 }
+
+#if WITH_EDITOR
+void UANS_InvokeDamageBehavior::ConditionalDebugDraw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const
+{
+	if (!PreviewSkelMeshComp || !PreviewSkelMeshComp->GetWorld()) return;
+
+	TMap<FString, FDBSDebugHitRegistratorDescription> LocalHitRegistratorsDescription = HitRegistratorsDescription;
+	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
+	const bool bUsingFallback = !DamageBehaviorsSystemSettings->DebugActors.FindByKey(PreviewSkelMeshComp->GetSkeletalMeshAsset());
+
+	for (TPair<FString, FDBSDebugHitRegistratorDescription> RegistratorsDescription : LocalHitRegistratorsDescription)
+	{
+		FName SocketName = RegistratorsDescription.Value.SocketNameAttached;
+		FVector SocketLocation = PreviewSkelMeshComp->GetSocketLocation(SocketName);
+		FRotator SocketRotation = PreviewSkelMeshComp->GetSocketRotation(SocketName);
+		
+		// First rotate by socket rotation, then apply the component's local rotation
+		FRotator FinalRotation = SocketRotation + RegistratorsDescription.Value.Rotation;
+		FVector FinalLocation = SocketLocation + FinalRotation.RotateVector(RegistratorsDescription.Value.Location);
+		
+		// Draw capsule using PDI
+		if (PDI)
+		{
+			DrawWireCapsule(
+				PDI,
+				FinalLocation,
+				FinalRotation.Quaternion().GetForwardVector(),
+				FinalRotation.Quaternion().GetRightVector(),
+				FinalRotation.Quaternion().GetUpVector(),
+				RegistratorsDescription.Value.Color.ToFColor(true),
+				RegistratorsDescription.Value.CapsuleRadius,
+				RegistratorsDescription.Value.CapsuleHalfHeight,
+				25,  // Number of sides for capsule rendering
+				SDPG_Foreground,
+				RegistratorsDescription.Value.Thickness
+			);
+		}
+
+		if (bUsingFallback)
+		{
+			// Draw a "F" letter above the capsule to indicate fallback
+			const float TextHeight = 20.0f;
+			const float TextWidth = 10.0f;
+			const FVector TextBase = FinalLocation + FVector(0, 0, RegistratorsDescription.Value.CapsuleHalfHeight + 20.0f);
+			
+			if (PDI)
+			{
+				// Vertical line of F
+				PDI->DrawLine(
+					TextBase,
+					TextBase + FVector(0, 0, TextHeight),
+					FLinearColor::Yellow,
+					SDPG_Foreground,
+					2.0f
+				);
+				
+				// Top horizontal line of F
+				PDI->DrawLine(
+					TextBase + FVector(0, 0, TextHeight),
+					TextBase + FVector(TextWidth, 0, TextHeight),
+					FLinearColor::Yellow,
+					SDPG_Foreground,
+					2.0f
+				);
+				
+				// Middle horizontal line of F
+				PDI->DrawLine(
+					TextBase + FVector(0, 0, TextHeight * 0.6f),
+					TextBase + FVector(TextWidth * 0.8f, 0, TextHeight * 0.6f),
+					FLinearColor::Yellow,
+					SDPG_Foreground,
+					2.0f
+				);
+			}
+		}
+	}
+}
+#endif

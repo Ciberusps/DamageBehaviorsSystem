@@ -17,4 +17,10 @@ public:
 	virtual void ShutdownModule() override;
 
 	void HandleObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& Event);
+
+private:
+	void RegisterAnimGraphNodeFactory();
+	void UnregisterAnimGraphNodeFactory();
+
+	TSharedPtr<class FGraphPanelNodeFactory> AnimGraphNodeFactory;
 };

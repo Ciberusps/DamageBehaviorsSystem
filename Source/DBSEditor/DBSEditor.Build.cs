@@ -29,6 +29,8 @@ public class DBSEditor : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"PropertyEditor",
+				"AnimGraph",
+				"AnimGraphRuntime",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -50,6 +52,11 @@ public class DBSEditor : ModuleRules
 				"EditorWidgets", 
 				
 				"DamageBehaviorsSystem",
+				"Sequencer",
+				"AnimGraph",
+				"BlueprintGraph", 
+				
+				"EditorStyle",
 				// ... add private dependencies that you statically link with here ...
 			}
 			);

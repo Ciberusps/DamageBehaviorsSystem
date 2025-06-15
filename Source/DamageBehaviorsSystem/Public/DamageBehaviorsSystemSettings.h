@@ -23,14 +23,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
 	TArray<TSubclassOf<UDamageBehaviorsSourceEvaluator>> DamageBehaviorsSourcesEvaluators = {};
 
-	// TODO: ActorsBySourceName - RightHandActor, LeftHandActor
-	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
-	TArray<FDBSInvokeDamageBehaviorDebugForMesh> DebugActors = {};
-
 	// Fallback debug mesh used when no specific debug actors are found for a mesh
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings", meta=(DisplayName="Fallback Debug Mesh"))
 	FDBSInvokeDamageBehaviorDebugForMesh FallbackDebugMesh;
 	
+	// TODO: ActorsBySourceName - RightHandActor, LeftHandActor
+	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
+	TArray<FDBSInvokeDamageBehaviorDebugForMesh> DebugActors = {};
+
 protected:
 	//~UDeveloperSettings interface
 	virtual FName GetCategoryName() const override;

@@ -117,7 +117,7 @@ UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehavior(const FString Name
 	TObjectPtr<UDamageBehavior> const* DamageBehaviorSearch = DamageBehaviorsList.FindByPredicate(
 		[&](const UDamageBehavior* Behavior)
 		{
-			if (!IsValid(Behavior))
+			if (!Behavior)
 			{
 				return false;
 			}

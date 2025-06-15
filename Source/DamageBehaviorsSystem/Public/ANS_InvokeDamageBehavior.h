@@ -60,6 +60,12 @@ struct FDBSDebugHitRegistratorDescription
 
 	UPROPERTY()
 	FName SocketNameAttached = "";
+
+	UPROPERTY()
+	FVector Location;
+	UPROPERTY()
+	FRotator Rotation;
+	
 	UPROPERTY()
 	float CapsuleRadius = 0.0f;
 	UPROPERTY()

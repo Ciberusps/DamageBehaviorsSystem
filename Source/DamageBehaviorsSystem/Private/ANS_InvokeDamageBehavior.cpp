@@ -175,8 +175,9 @@ UANS_InvokeDamageBehavior::UANS_InvokeDamageBehavior()
 	};
 
 	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
-	for (TSubclassOf<UDamageBehaviorsSourceEvaluator> DamageBehaviorsSourcesEvaluator : DamageBehaviorsSystemSettings->DamageBehaviorsSourcesEvaluators)
+	for (const TSubclassOf<UDamageBehaviorsSourceEvaluator> DamageBehaviorsSourcesEvaluator : DamageBehaviorsSystemSettings->DamageBehaviorsSourcesEvaluators)
 	{
+		if (!DamageBehaviorsSourcesEvaluator) continue;
 		TargetSources.Add(DamageBehaviorsSourcesEvaluator.GetDefaultObject()->SourceName, false);
 	}
 }

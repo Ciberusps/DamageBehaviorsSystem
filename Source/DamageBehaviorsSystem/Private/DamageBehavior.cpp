@@ -240,6 +240,7 @@ void UDamageBehavior::HandleHitInternally(const FDBSHitRegistratorHitResult& Hit
 void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const FInstancedStruct& Payload)
 {
     bIsActive = bShouldActivate;
+	CurrentInvokePayload = Payload;
 
 	for (const FDBSHitRegistratorsSource& CapsuleHitRegistratorsSource : HitRegistratorsSources)
 	{

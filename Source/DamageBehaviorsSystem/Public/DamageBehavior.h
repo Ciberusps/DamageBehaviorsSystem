@@ -76,7 +76,6 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent)
     void MakeActive(bool bShouldActivate, const FInstancedStruct& Payload);
-    // void MakeActive(bool bShouldActivate, EPhysDamageType OverridePhysDamageType_In);
 
 	// by default HitTarget is most top actor in "attach" hierarchy
 	// TODO: probably in GrabAttacks it might cause problems
@@ -111,6 +110,9 @@ public:
 	UFUNCTION()
 	TArray<FString> GetHitRegistratorsNameOptions() const;
 
+	UFUNCTION(BlueprintCallable)
+	const FInstancedStruct& GetCurrentInvokePayload() const { return CurrentInvokePayload; };
+
 	bool operator==(const FString& OtherName) const
 	{
 		return Name == OtherName;
@@ -121,6 +123,9 @@ public:
 	}
 
 protected:
+	UPROPERTY()
+	FInstancedStruct CurrentInvokePayload;
+	
 #if WITH_EDITOR
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;

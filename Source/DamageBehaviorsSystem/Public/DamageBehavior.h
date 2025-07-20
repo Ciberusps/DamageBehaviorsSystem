@@ -124,7 +124,7 @@ public:
 
 protected:
 	UPROPERTY()
-	FInstancedStruct CurrentInvokePayload;
+	FInstancedStruct CurrentInvokePayload = {};
 	
 #if WITH_EDITOR
 	virtual void PostInitProperties() override;

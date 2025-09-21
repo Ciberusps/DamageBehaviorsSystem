@@ -71,10 +71,10 @@ struct FDBSDebugHitRegistratorDescription
 	FName SocketNameAttached = "";
 
 	UPROPERTY()
-	FVector Location;
+	FVector Location = FVector::ZeroVector;
 	UPROPERTY()
-	FRotator Rotation;
-	
+	FRotator Rotation = FRotator::ZeroRotator;
+
 	UPROPERTY()
 	float CapsuleRadius = 0.0f;
 	UPROPERTY()
@@ -98,7 +98,7 @@ class DAMAGEBEHAVIORSSYSTEM_API UANS_InvokeDamageBehavior : public UAnimNotifySt
 
 public:
 	UANS_InvokeDamageBehavior();
-	
+
 #if WITH_EDITOR
 	/** Override this to prevent firing this notify state type in animation editors */
 	virtual bool ShouldFireInEditor() { return true; }
@@ -126,12 +126,12 @@ public:
 private:
 	UPROPERTY()
 	TArray<FDBSInvokeDamageBehaviorDebugActor> FilledDebugActors;
-	
+
 	UPROPERTY()
 	TMap<FString, FDBSDebugHitRegistratorDescription> HitRegistratorsDescription = {};
 
 	FDBSInvokeDamageBehaviorDebugActor GetFilledDebugActor(FString SourceName);
-	
+
 	void DrawCapsules(UWorld* WorldContextObject, USkeletalMeshComponent* MeshComp);
 
 	TArray<FString> GetDamageBehaviorSourcesList() const;

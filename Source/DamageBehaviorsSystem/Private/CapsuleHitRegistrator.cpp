@@ -134,9 +134,7 @@ void UCapsuleHitRegistrator::SetIsHitRegistrationEnabled(bool bIsEnabled_In, FDa
 
 				if (DBSHitBoxesCVar)
 				{
-					DBSHitBoxesCVar->SetOnChangedCallback(
-						FConsoleVariableDelegate::CreateUObject(this, &ThisClass::OnDebugCategoryChanged)
-					);
+					DBSHitBoxesCVar->OnChangedDelegate().AddUObject(this, &ThisClass::OnDebugCategoryChanged);
 				}
 				
 				if (CurrentHitDetectionSettings.bCheckOverlappingActorsOnStart)

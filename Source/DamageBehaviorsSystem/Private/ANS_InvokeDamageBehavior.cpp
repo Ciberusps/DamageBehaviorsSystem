@@ -219,10 +219,10 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 			UDamageBehavior* DamageBehavior = DebugActor.DBC->GetDamageBehavior(Name);
 			if (!DamageBehavior) continue;
 
-			for (const FDBSHitRegistratorsToActivateSource& HitRegistratorsToActivateBySource : DamageBehavior->HitRegistratorsToActivateBySource)
+			for (FDBSHitRegistratorsToActivateSource HitRegistratorsToActivateBySource : DamageBehavior->HitRegistratorsToActivateBySource)
 			{
 				FDBSInvokeDamageBehaviorDebugActor DebugActorForHitRegistrator = GetFilledDebugActor(HitRegistratorsToActivateBySource.SourceName);
-				if (!DebugActorForHitRegistrator.IsValid()) continue;
+				if (!DebugActorForHitRegistrator.Actor) continue;
 
 				for (FString HitRegistratorsName : HitRegistratorsToActivateBySource.HitRegistratorsNames)
 				{
@@ -322,10 +322,29 @@ FDBSInvokeDamageBehaviorDebugActor UANS_InvokeDamageBehavior::GetFilledDebugActo
 		{
 			return DebugActor.SourceName == SourceName;
 		});
-	if (!DebugActorSearch) return {};
 
-	FDBSInvokeDamageBehaviorDebugActor& DebugActor = *DebugActorSearch;
-	return DebugActor;
+	if (DebugActorSearch)
+	{
+		if (!DebugActorSearch->IsValid())
+		{
+			DebugActorSearch->FillData();
+		}
+		return *DebugActorSearch;
+	}
+
+	// If there is no explicit mapping for the default source ("ThisActor"),
+	// fallback to the first configured debug actor (e.g., a weapon like WP_M_Sword)
+	if (SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE && FilledDebugActors.Num() > 0)
+	{
+		FDBSInvokeDamageBehaviorDebugActor& First = FilledDebugActors[0];
+		if (!First.IsValid())
+		{
+			First.FillData();
+		}
+		return First;
+	}
+
+	return {};
 }
 
 void UANS_InvokeDamageBehavior::DrawCapsules(UWorld* WorldContextObject, USkeletalMeshComponent* MeshComp)

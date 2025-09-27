@@ -32,6 +32,26 @@ public:
 	// Fallback debug mesh used when no specific debug actors are found for a mesh
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings", meta=(DisplayName="Fallback Debug Mesh"))
 	FDBSInvokeDamageBehaviorDebugForMesh FallbackDebugMesh;
+
+    // Class filter for selecting DebugActor classes in all pickers
+    UPROPERTY(config, EditAnywhere, Category="Debug")
+    TSoftClassPtr<AActor> DebugActorFilterBaseClass;
+
+    // Editor debug drawing controls
+    UPROPERTY(config, EditAnywhere, Category="Debug")
+    bool bEnableEditorDebugDraw = true;
+
+    // If true, keep last drawn state when montage preview is paused
+    UPROPERTY(config, EditAnywhere, Category="Debug")
+    bool bPreserveDrawOnPause = true;
+
+    // If true, spawn selected DebugActors in the preview world
+    UPROPERTY(config, EditAnywhere, Category="Debug")
+    bool bSpawnDebugActorsInPreview = false;
+
+    // If true and a socket is provided on DebugActor, attach actor to that socket
+    UPROPERTY(config, EditAnywhere, Category="Debug")
+    bool bAttachDebugActorsToSockets = true;
 	
 protected:
 	//~UDeveloperSettings interface

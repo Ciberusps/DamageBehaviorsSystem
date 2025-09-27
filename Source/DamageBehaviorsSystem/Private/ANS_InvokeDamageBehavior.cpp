@@ -5,6 +5,7 @@
 
 #include "DamageBehaviorsComponent.h"
 #include "DamageBehaviorsSystemSettings.h"
+#include "DBSPreviewDebugBridge.h"
 #include "Engine/InheritableComponentHandler.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
@@ -186,7 +187,7 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	if (MeshComp->GetWorld()->IsPreviewWorld())
+    if (MeshComp->GetWorld()->IsPreviewWorld())
 	{
 		const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
 		const FDBSInvokeDamageBehaviorDebugForMesh* InvokeDamageBehaviorDebugForMeshSearch = DamageBehaviorsSystemSettings->DebugActors.FindByKey(MeshComp->GetSkeletalMeshAsset());
@@ -256,7 +257,26 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 			}
 		}
 		
-		DrawCapsules(MeshComp->GetWorld(), MeshComp);
+        // Broadcast preview debug begin
+        {
+            FDBSPreviewDebugPayload PayloadData;
+            PayloadData.MeshComp = MeshComp;
+            PayloadData.Event = EDBSPreviewDebugEvent::Begin;
+            PayloadData.HitRegistratorsDescription = HitRegistratorsDescription;
+
+            PayloadData.DebugActorsToSpawn.Reset();
+            for (const FDBSInvokeDamageBehaviorDebugActor& DA : FilledDebugActors)
+            {
+                FDBSPreviewDebugActorSpawnInfo Info;
+                Info.SourceName = DA.SourceName;
+                Info.Actor = DA.Actor;
+                Info.bCustomSocketName = DA.bCustomSocketName;
+                Info.SocketName = DA.SocketName;
+                PayloadData.DebugActorsToSpawn.Add(Info);
+            }
+
+            DBS_GetOnPreviewDebugDelegate().Broadcast(PayloadData);
+        }
 	}
 	else
 	{
@@ -275,22 +295,31 @@ void UANS_InvokeDamageBehavior::NotifyTick(
 	const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
-	if (MeshComp->GetWorld()->IsPreviewWorld())
-	{
-		DrawCapsules(MeshComp->GetWorld(), MeshComp);
-	}
+    if (MeshComp->GetWorld()->IsPreviewWorld())
+    {
+        FDBSPreviewDebugPayload PayloadData;
+        PayloadData.MeshComp = MeshComp;
+        PayloadData.Event = EDBSPreviewDebugEvent::Tick;
+        PayloadData.HitRegistratorsDescription = HitRegistratorsDescription;
+        DBS_GetOnPreviewDebugDelegate().Broadcast(PayloadData);
+    }
 }
 
 void UANS_InvokeDamageBehavior::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-	if (MeshComp->GetWorld()->IsPreviewWorld())
-	{
-		DrawCapsules(MeshComp->GetWorld(), MeshComp);
-		FilledDebugActors = {};
-		HitRegistratorsDescription = {};
-	}
+    if (MeshComp->GetWorld()->IsPreviewWorld())
+    {
+        FDBSPreviewDebugPayload PayloadData;
+        PayloadData.MeshComp = MeshComp;
+        PayloadData.Event = EDBSPreviewDebugEvent::End;
+        PayloadData.HitRegistratorsDescription = HitRegistratorsDescription;
+        DBS_GetOnPreviewDebugDelegate().Broadcast(PayloadData);
+
+        FilledDebugActors = {};
+        HitRegistratorsDescription = {};
+    }
 	else
 	{
 		UActorComponent* Component = MeshComp->GetOwner()->GetComponentByClass(UDamageBehaviorsComponent::StaticClass());

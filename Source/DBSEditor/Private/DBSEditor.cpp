@@ -27,6 +27,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -169,61 +170,84 @@ void FDBSEditorModule::StartupModule()
 
                         SourcesBox->AddSlot()
                         .AutoHeight()
-                        .Padding(FMargin(6.0f, 3.0f))
+                        .Padding(FMargin(6.0f, 6.0f))
                         [
-                            SNew(SHorizontalBox)
-                            + SHorizontalBox::Slot().AutoWidth().Padding(4,1)
-                            [ SNew(STextBlock).Text(FText::FromString(Source)) ]
-                            + SHorizontalBox::Slot().AutoWidth().Padding(10,1)
-                            [ SNew(STextBlock).Text(FText::FromString(ClassLabel)) ]
-                            + SHorizontalBox::Slot().AutoWidth().Padding(8,1)
+                            SNew(SBorder)
+                            .Padding(FMargin(8.0f))
                             [
-                                SNew(SComboButton)
-                                .ButtonContent()
-                                [ SNew(STextBlock).Text(FText::FromString(TEXT("Select Class"))) ]
-                                .OnGetMenuContent_Lambda([Source, TargetMesh]() -> TSharedRef<SWidget>
-                                {
-                                    FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-                                    FAssetPickerConfig Picker;
-                                    Picker.Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
-                                    Picker.SelectionMode = ESelectionMode::Single;
-                                    Picker.bFocusSearchBoxWhenOpened = true;
-                                    Picker.OnAssetSelected = FOnAssetSelected::CreateLambda([Source, TargetMesh](const FAssetData& Asset)
-                                    {
-                                        if (!TargetMesh) return;
-                                        UBlueprint* BP = Cast<UBlueprint>(Asset.GetAsset());
-                                        if (!BP || !BP->GeneratedClass) return;
-                                        UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-                                        FDBSInvokeDamageBehaviorDebugForMesh* Mapping = SettingsLocal->DebugActors.FindByKey(TargetMesh);
-                                        if (!Mapping) { const int32 NewIdx = SettingsLocal->DebugActors.AddDefaulted(); Mapping = &SettingsLocal->DebugActors[NewIdx]; Mapping->Mesh = TargetMesh; }
-                                        FDBSInvokeDamageBehaviorDebugActor* Existing = Mapping->DebugActors.FindByPredicate([&Source](const FDBSInvokeDamageBehaviorDebugActor& E){ return E.SourceName == Source; });
-                                        if (!Existing) { FDBSInvokeDamageBehaviorDebugActor NewEntry; NewEntry.SourceName = Source; NewEntry.Actor = BP->GeneratedClass; Mapping->DebugActors.Add(NewEntry); }
-                                        else { Existing->Actor = BP->GeneratedClass; }
-                                        SettingsLocal->SaveConfig();
-                                        FSlateApplication::Get().DismissAllMenus();
-                                    });
-                                    return CBModule.Get().CreateAssetPicker(Picker);
-                                })
-                            ]
-                            + SHorizontalBox::Slot().AutoWidth().Padding(12,1)
-                            [ SNew(STextBlock).Text(FText::FromString(TEXT("Socket:"))) ]
-                            + SHorizontalBox::Slot().AutoWidth().Padding(2,1)
-                            [
-                                SNew(SEditableTextBox)
-                                .Text(FText::FromString(SocketLabel))
-                                .OnTextCommitted_Lambda([Source, TargetMesh](const FText& NewText, ETextCommit::Type)
-                                {
-                                    if (!TargetMesh) return;
-                                    UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-                                    FDBSInvokeDamageBehaviorDebugForMesh* Mapping = SettingsLocal->DebugActors.FindByKey(TargetMesh);
-                                    if (!Mapping) { const int32 NewIdx = SettingsLocal->DebugActors.AddDefaulted(); Mapping = &SettingsLocal->DebugActors[NewIdx]; Mapping->Mesh = TargetMesh; }
-                                    FDBSInvokeDamageBehaviorDebugActor* Existing = Mapping->DebugActors.FindByPredicate([&Source](const FDBSInvokeDamageBehaviorDebugActor& E){ return E.SourceName == Source; });
-                                    if (!Existing) { FDBSInvokeDamageBehaviorDebugActor NewEntry; NewEntry.SourceName = Source; Mapping->DebugActors.Add(NewEntry); Existing = &Mapping->DebugActors.Last(); }
-                                    const FString Str = NewText.ToString();
-                                    Existing->bCustomSocketName = !Str.IsEmpty();
-                                    Existing->SocketName = FName(Str);
-                                    SettingsLocal->SaveConfig();
-                                })
+                                SNew(SVerticalBox)
+                                // Row: Source Name
+                                + SVerticalBox::Slot().AutoHeight().Padding(0,0,0,4)
+                                [
+                                    SNew(SHorizontalBox)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0)
+                                    [ SNew(STextBlock).Text(FText::FromString(TEXT("Source:"))) ]
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0)
+                                    [ SNew(STextBlock).Text(FText::FromString(Source)) ]
+                                ]
+                                // Row: Class picker
+                                + SVerticalBox::Slot().AutoHeight().Padding(0,0,0,4)
+                                [
+                                    SNew(SHorizontalBox)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0)
+                                    [ SNew(STextBlock).Text(FText::FromString(TEXT("Class:"))) ]
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0)
+                                    [ SNew(STextBlock).Text(FText::FromString(ClassLabel)) ]
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(12,0)
+                                    [
+                                        SNew(SComboButton)
+                                        .ButtonContent()
+                                        [ SNew(STextBlock).Text(FText::FromString(TEXT("Select Class"))) ]
+                                        .OnGetMenuContent_Lambda([Source, TargetMesh]() -> TSharedRef<SWidget>
+                                        {
+                                            FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+                                            FAssetPickerConfig Picker;
+                                            Picker.Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
+                                            Picker.SelectionMode = ESelectionMode::Single;
+                                            Picker.bFocusSearchBoxWhenOpened = true;
+                                            Picker.OnAssetSelected = FOnAssetSelected::CreateLambda([Source, TargetMesh](const FAssetData& Asset)
+                                            {
+                                                if (!TargetMesh) return;
+                                                UBlueprint* BP = Cast<UBlueprint>(Asset.GetAsset());
+                                                if (!BP || !BP->GeneratedClass) return;
+                                                UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+                                                FDBSInvokeDamageBehaviorDebugForMesh* Mapping = SettingsLocal->DebugActors.FindByKey(TargetMesh);
+                                                if (!Mapping) { const int32 NewIdx = SettingsLocal->DebugActors.AddDefaulted(); Mapping = &SettingsLocal->DebugActors[NewIdx]; Mapping->Mesh = TargetMesh; }
+                                                FDBSInvokeDamageBehaviorDebugActor* Existing = Mapping->DebugActors.FindByPredicate([&Source](const FDBSInvokeDamageBehaviorDebugActor& E){ return E.SourceName == Source; });
+                                                if (!Existing) { FDBSInvokeDamageBehaviorDebugActor NewEntry; NewEntry.SourceName = Source; NewEntry.Actor = BP->GeneratedClass; Mapping->DebugActors.Add(NewEntry); }
+                                                else { Existing->Actor = BP->GeneratedClass; }
+                                                SettingsLocal->SaveConfig();
+                                                FSlateApplication::Get().DismissAllMenus();
+                                            });
+                                            return CBModule.Get().CreateAssetPicker(Picker);
+                                        })
+                                    ]
+                                ]
+                                // Row: Socket
+                                + SVerticalBox::Slot().AutoHeight()
+                                [
+                                    SNew(SHorizontalBox)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0)
+                                    [ SNew(STextBlock).Text(FText::FromString(TEXT("Socket:"))) ]
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0)
+                                    [
+                                        SNew(SEditableTextBox)
+                                        .Text(FText::FromString(SocketLabel))
+                                        .OnTextCommitted_Lambda([Source, TargetMesh](const FText& NewText, ETextCommit::Type)
+                                        {
+                                            if (!TargetMesh) return;
+                                            UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+                                            FDBSInvokeDamageBehaviorDebugForMesh* Mapping = SettingsLocal->DebugActors.FindByKey(TargetMesh);
+                                            if (!Mapping) { const int32 NewIdx = SettingsLocal->DebugActors.AddDefaulted(); Mapping = &SettingsLocal->DebugActors[NewIdx]; Mapping->Mesh = TargetMesh; }
+                                            FDBSInvokeDamageBehaviorDebugActor* Existing = Mapping->DebugActors.FindByPredicate([&Source](const FDBSInvokeDamageBehaviorDebugActor& E){ return E.SourceName == Source; });
+                                            if (!Existing) { FDBSInvokeDamageBehaviorDebugActor NewEntry; NewEntry.SourceName = Source; Mapping->DebugActors.Add(NewEntry); Existing = &Mapping->DebugActors.Last(); }
+                                            const FString Str = NewText.ToString();
+                                            Existing->bCustomSocketName = !Str.IsEmpty();
+                                            Existing->SocketName = FName(Str);
+                                            SettingsLocal->SaveConfig();
+                                        })
+                                    ]
+                                ]
                             ]
                         ];
                     }

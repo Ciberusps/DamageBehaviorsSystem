@@ -151,5 +151,102 @@ TStatId FDBSEditorPreviewDrawer::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FDBSEditorPreviewDrawer, STATGROUP_Tickables);
 }
 
+FDBSEditorPreviewDrawer* FDBSEditorPreviewDrawer::Get()
+{
+	static FDBSEditorPreviewDrawer* Singleton = nullptr;
+	if (!Singleton)
+	{
+		Singleton = new FDBSEditorPreviewDrawer();
+	}
+	return Singleton;
+}
+
+USkeletalMeshComponent* FDBSEditorPreviewDrawer::FindPreviewMeshCompFor(USkeletalMesh* Mesh) const
+{
+	for (const auto& Pair : LastDescriptions)
+	{
+		if (USkeletalMeshComponent* Comp = Pair.Key.Get())
+		{
+			if (Comp->GetSkeletalMeshAsset() == Mesh)
+			{
+				return Comp;
+			}
+		}
+	}
+	return nullptr;
+}
+
+USkeletalMesh* FDBSEditorPreviewDrawer::GetAnyActiveMesh() const
+{
+	for (const auto& Pair : LastDescriptions)
+	{
+		if (USkeletalMeshComponent* Comp = Pair.Key.Get())
+		{
+			if (USkeletalMesh* Mesh = Comp->GetSkeletalMeshAsset())
+			{
+				return Mesh;
+			}
+		}
+	}
+	return nullptr;
+}
+
+void FDBSEditorPreviewDrawer::ApplySpawnForMesh(USkeletalMesh* Mesh, const TArray<FDBSPreviewDebugActorSpawnInfo>& SpawnInfos)
+{
+	if (!Mesh) return;
+    USkeletalMeshComponent* Comp = this->FindPreviewMeshCompFor(Mesh);
+	if (!Comp) return;
+
+	UDamageBehaviorsSystemSettings* Settings = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+	if (!Settings->bSpawnDebugActorsInPreview) return;
+
+	UWorld* World = Comp->GetWorld();
+	if (!World || !World->IsPreviewWorld()) return;
+
+    TMap<FString, TWeakObjectPtr<AActor>>& PerSource = SpawnedActors.FindOrAdd(Comp);
+	for (const FDBSPreviewDebugActorSpawnInfo& Info : SpawnInfos)
+	{
+		UClass* Cls = Info.Actor.LoadSynchronous();
+		if (!Cls) continue;
+		if (UClass* BaseFilter = Settings->DebugActorFilterBaseClass.LoadSynchronous())
+		{
+			if (!Cls->IsChildOf(BaseFilter)) continue;
+		}
+		AActor* Existing = PerSource.FindRef(Info.SourceName).Get();
+		if (!Existing)
+		{
+			FActorSpawnParameters Params; Params.ObjectFlags |= RF_Transient;
+			Existing = World->SpawnActor<AActor>(Cls, FTransform::Identity, Params);
+			PerSource.Add(Info.SourceName, Existing);
+		}
+
+					const FName Socket = Info.bCustomSocketName ? Info.SocketName : NAME_None;
+					if (Socket != NAME_None)
+		{
+			Existing->AttachToComponent(Comp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
+		}
+		else
+		{
+					// Hide CapsuleHitRegistrator shapes if requested
+					if (Settings->bHideDebugActorHitRegistratorShapes)
+					{
+						TInlineComponentArray<UCapsuleHitRegistrator*> Registrators(Existing);
+						for (UCapsuleHitRegistrator* Reg : Registrators)
+						{
+							if (Reg) { Reg->ShapeColor = FColor(0,0,0,0); Reg->SetHiddenInGame(true, true); Reg->UpdateComponentToWorld(); }
+						}
+					}
+			if (Socket != NAME_None)
+			{
+				Existing->SetActorTransform(Comp->GetSocketTransform(Socket, RTS_World));
+			}
+			else
+			{
+				Existing->SetActorTransform(Comp->GetComponentTransform());
+			}
+		}
+	}
+}
+
 
 

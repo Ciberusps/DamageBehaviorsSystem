@@ -47,7 +47,8 @@ public class DBSEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"UnrealEd",
-                // Removed ClassViewer and Settings dependencies to avoid unavailable APIs
+				"Settings",
+				"ContentBrowser",
 				"DeveloperSettings", 
 				
 				"EditorWidgets", 

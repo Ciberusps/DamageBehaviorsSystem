@@ -52,6 +52,10 @@ public:
     // If true and a socket is provided on DebugActor, attach actor to that socket
     UPROPERTY(config, EditAnywhere, Category="Debug")
     bool bAttachDebugActorsToSockets = true;
+
+    // If true, hide CapsuleHitRegistrator component shapes on spawned DebugActors
+    UPROPERTY(config, EditAnywhere, Category="Debug")
+    bool bHideDebugActorHitRegistratorShapes = true;
 	
 protected:
 	//~UDeveloperSettings interface

@@ -23,13 +23,13 @@ public:
 
 private:
 	void HandleAssetEditorOpened(UObject* Asset);
-	void HandleAssetEditorClosed(UObject* Asset, IAssetEditorInstance* AEI);
 	void HandleAssetOpendInEditor(UObject* Asset, IAssetEditorInstance* AEI);
-	void ClearDebugActorsForMesh(USkeletalMesh* Mesh);
 	void SpawnDebugActorsForMesh(USkeletalMesh* Mesh, USkeletalMeshComponent* PreferredComp = nullptr);
 	void RespawnDebugActorsForMeshDeferred(USkeletalMesh* Mesh);
 	void RespawnForAssetDeferred(UObject* Asset);
 	TArray<FDBSPreviewDebugActorSpawnInfo> CollectSpawnInfosForMesh(USkeletalMesh* Mesh) const;
+	void RemoveAllDebugActorsForMesh(USkeletalMesh* Mesh);
+	void RemoveDebugActorForMeshSource(USkeletalMesh* Mesh, const FString& SourceName);
 
 private:
 	TMap<TWeakObjectPtr<USkeletalMesh>, int32> PendingRespawnAttempts;

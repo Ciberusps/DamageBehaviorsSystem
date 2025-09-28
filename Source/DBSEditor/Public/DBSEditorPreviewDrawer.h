@@ -36,14 +36,12 @@ public:
 	USkeletalMesh* GetAnyActiveMesh() const;
 	void GetActivePreviewMeshes(TArray<USkeletalMesh*>& OutMeshes) const;
 	USkeletalMesh* GetFocusedEditorPreviewMesh() const;
-	void RemoveSpawnForMeshSource(USkeletalMesh* Mesh, const FString& SourceName);
 	void UpdateHitRegistratorShapesVisibilityForAll();
 	void RemoveSpawnForComponentSource(USkeletalMeshComponent* Comp, const FString& SourceName);
 	void RemoveAllForComponent(USkeletalMeshComponent* Comp);
 
 private:
 	void OnPreviewDebug(const FDBSPreviewDebugPayload& Payload);
-	void ClearSpawnForMeshComp(USkeletalMeshComponent* Comp);
 
 private:
 	// Last received data per mesh

@@ -8,7 +8,6 @@
 #include "DBSPreviewDebugBridge.h"
 #include "Engine/SkeletalMesh.h"
 #include "ToolMenus.h"
-#include "LevelEditor.h"
 #include "DamageBehaviorsSystemSettings.h"
 #include "ISettingsModule.h"
 #include "ContentBrowserModule.h"
@@ -19,10 +18,8 @@
 #include "Misc/MessageDialog.h"
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
-#include "Editor.h"
 #include "Engine/Blueprint.h"
 #include "UObject/UObjectIterator.h"
-#include "Engine/Blueprint.h"
 #include "ToolMenus.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
@@ -32,7 +29,6 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/Skeleton.h"
@@ -42,6 +38,7 @@
 #include "IPersonaToolkit.h"
 #include "IAnimationEditor.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 static const FName UHLDebugSystemEditorTabName("DBSEditor");
 
@@ -88,7 +85,6 @@ void FDBSEditorModule::StartupModule()
 		{
 			AES->OnAssetEditorOpened().AddRaw(this, &FDBSEditorModule::HandleAssetEditorOpened);
 			AES->OnAssetOpenedInEditor().AddRaw(this, &FDBSEditorModule::HandleAssetOpendInEditor);
-			AES->OnAssetClosedInEditor().AddRaw(this, &FDBSEditorModule::HandleAssetEditorClosed);
 		}
 		// Also catch asset switches within an already open editor
 	}
@@ -335,7 +331,8 @@ void FDBSEditorModule::StartupModule()
                                                 }
                                                 else
                                                 {
-                                                    FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(TargetMesh, Source);
+                                                    FDBSEditorModule& DBSModule = FModuleManager::GetModuleChecked<FDBSEditorModule>(TEXT("DBSEditor"));
+                                                    DBSModule.RemoveDebugActorForMeshSource(TargetMesh, Source);
                                                 }
                                             });
                                             return CBModule.Get().CreateAssetPicker(Picker);
@@ -410,7 +407,8 @@ void FDBSEditorModule::StartupModule()
                                             }
                                             else
                                             {
-                                                FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(TargetMesh, Source);
+                                                FDBSEditorModule& DBSModule = FModuleManager::GetModuleChecked<FDBSEditorModule>(TEXT("DBSEditor"));
+                                                DBSModule.RemoveDebugActorForMeshSource(TargetMesh, Source);
                                             }
                                         })
                                     ]
@@ -504,7 +502,8 @@ void FDBSEditorModule::StartupModule()
                                     if (A.SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE) continue;
                                     if (!A.bSpawnInPreview)
                                     {
-                                        FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(Mesh, A.SourceName);
+                                        FDBSEditorModule& DBSModule = FModuleManager::GetModuleChecked<FDBSEditorModule>(TEXT("DBSEditor"));
+                                        DBSModule.RemoveDebugActorForMeshSource(Mesh, A.SourceName);
                                         continue;
                                     }
                                     FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = A.SourceName; Info.Actor = A.Actor; Info.bCustomSocketName = A.bCustomSocketName; Info.SocketName = A.SocketName; Infos.Add(Info);
@@ -575,7 +574,6 @@ void FDBSEditorModule::ShutdownModule()
 		{
 			AES->OnAssetEditorOpened().RemoveAll(this);
 			AES->OnAssetOpenedInEditor().RemoveAll(this);
-			AES->OnAssetClosedInEditor().RemoveAll(this);
 		}
 	}
 }
@@ -601,7 +599,7 @@ void FDBSEditorModule::HandleObjectPropertyChanged(UObject* Object, FPropertyCha
 					{
 						for (const FDBSDebugActor& A : Mapping->DebugActors)
 						{
-							Drawer->RemoveSpawnForMeshSource(Mesh, A.SourceName);
+							RemoveDebugActorForMeshSource(Mesh, A.SourceName);
 						}
 					}
 				}
@@ -671,47 +669,8 @@ void FDBSEditorModule::HandleAssetEditorOpened(UObject* Asset)
 	}
 	if (!Mesh) return;
 
-	ClearDebugActorsForMesh(Mesh);
+	RemoveAllDebugActorsForMesh(Mesh);
 	RespawnDebugActorsForMeshDeferred(Mesh);
-}
-
-void FDBSEditorModule::HandleAssetEditorClosed(UObject* Asset, IAssetEditorInstance* AEI)
-{
-	UAnimMontage* Montage = Cast<UAnimMontage>(Asset);
-	USkeletalMesh* Mesh = nullptr;
-	if (Montage)
-	{
-		if (USkeleton* Skel = Montage->GetSkeleton())
-		{
-			Mesh = Skel->GetPreviewMesh();
-		}
-	}
-	else if (UAnimSequenceBase* Seq = Cast<UAnimSequenceBase>(Asset))
-	{
-		if (USkeleton* Skel = Seq->GetSkeleton())
-		{
-			Mesh = Skel->GetPreviewMesh();
-		}
-	}
-	if (!Mesh) return;
-	if (FDBSEditorPreviewDrawer* Drawer = FDBSEditorPreviewDrawer::Get())
-	{
-		// Clear all spawned actors for this mesh
-		USkeletalMeshComponent* Comp = Drawer->FindPreviewMeshCompFor(Mesh);
-		if (Comp)
-		{
-			// Use internal clear helper via bridge: remove all sources by reading current mapping
-			UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-			const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
-			if (Mapping)
-			{
-				for (const FDBSDebugActor& A : Mapping->DebugActors)
-				{
-					FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(Mesh, A.SourceName);
-				}
-			}
-		}
-	}
 }
 
 void FDBSEditorModule::HandleAssetOpendInEditor(UObject* Asset, IAssetEditorInstance* AEI)
@@ -747,10 +706,9 @@ void FDBSEditorModule::HandleAssetOpendInEditor(UObject* Asset, IAssetEditorInst
 		return;
 	}
 
-	ClearDebugActorsForMesh(Mesh);
+	RemoveAllDebugActorsForMesh(Mesh);
 	if (PreferredComp)
 	{
-		FDBSEditorPreviewDrawer::Get()->RemoveAllForComponent(PreferredComp);
 		TArray<FDBSPreviewDebugActorSpawnInfo> Infos = CollectSpawnInfosForMesh(Mesh);
 		FDBSEditorPreviewDrawer::Get()->ApplySpawnForMeshWithComponent(Mesh, PreferredComp, Infos);
 		if (UWorld* World = PreferredComp->GetWorld())
@@ -785,23 +743,6 @@ void FDBSEditorModule::HandleAssetOpendInEditor(UObject* Asset, IAssetEditorInst
 	else
 	{
 		RespawnDebugActorsForMeshDeferred(Mesh);
-	}
-}
-
-void FDBSEditorModule::ClearDebugActorsForMesh(USkeletalMesh* Mesh)
-{
-	if (!Mesh) return;
-	if (FDBSEditorPreviewDrawer* Drawer = FDBSEditorPreviewDrawer::Get())
-	{
-		UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-		const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
-		if (Mapping)
-		{
-			for (const FDBSDebugActor& A : Mapping->DebugActors)
-			{
-				Drawer->RemoveSpawnForMeshSource(Mesh, A.SourceName);
-			}
-		}
 	}
 }
 
@@ -860,6 +801,40 @@ TArray<FDBSPreviewDebugActorSpawnInfo> FDBSEditorModule::CollectSpawnInfosForMes
 	TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
 	GatherSpawnInfosForMesh(Mesh, Infos);
 	return Infos;
+}
+
+void FDBSEditorModule::RemoveAllDebugActorsForMesh(USkeletalMesh* Mesh)
+{
+    if (!Mesh) return;
+    if (FDBSEditorPreviewDrawer* Drawer = FDBSEditorPreviewDrawer::Get())
+    {
+        for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+        {
+            USkeletalMeshComponent* Comp = *It;
+            if (!Comp || !Comp->GetWorld() || !Comp->GetWorld()->IsPreviewWorld()) continue;
+            if (Comp->GetSkeletalMeshAsset() == Mesh)
+            {
+                Drawer->RemoveAllForComponent(Comp);
+            }
+        }
+    }
+}
+
+void FDBSEditorModule::RemoveDebugActorForMeshSource(USkeletalMesh* Mesh, const FString& SourceName)
+{
+	if (!Mesh) return;
+	if (FDBSEditorPreviewDrawer* Drawer = FDBSEditorPreviewDrawer::Get())
+	{
+		for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+		{
+			USkeletalMeshComponent* Comp = *It;
+			if (!Comp || !Comp->GetWorld() || !Comp->GetWorld()->IsPreviewWorld()) continue;
+			if (Comp->GetSkeletalMeshAsset() == Mesh)
+			{
+				Drawer->RemoveSpawnForComponentSource(Comp, SourceName);
+			}
+		}
+	}
 }
 
 void FDBSEditorModule::RespawnDebugActorsForMeshDeferred(USkeletalMesh* Mesh)
@@ -943,19 +918,7 @@ void FDBSEditorModule::RespawnForAssetDeferred(UObject* Asset)
 	}
 	if (Mesh)
 	{
-		// Same flow as on open: clear then deferred respawn
-		if (FDBSEditorPreviewDrawer* Drawer = FDBSEditorPreviewDrawer::Get())
-		{
-			UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-			const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
-			if (Mapping)
-			{
-				for (const FDBSDebugActor& A : Mapping->DebugActors)
-				{
-					Drawer->RemoveSpawnForMeshSource(Mesh, A.SourceName);
-				}
-			}
-		}
+		RemoveAllDebugActorsForMesh(Mesh);
 		RespawnDebugActorsForMeshDeferred(Mesh);
 		PendingAssetOpenAttempts.Remove(Asset);
 		return;

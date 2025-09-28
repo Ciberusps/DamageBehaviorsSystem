@@ -389,15 +389,7 @@ void FDBSEditorPreviewDrawer::UpdateHitRegistratorShapesVisibilityForAll()
                 for (UCapsuleHitRegistrator* Reg : Registrators)
                 {
                     if (!Reg) continue;
-                    if (bHide)
-                    {
-						Reg->SetVisibility(false);
-                    }
-                    else
-                    {
-                        // Restore a visible default if needed
-						Reg->SetVisibility(true);
-                    }
+                    Reg->SetVisibility(!bHide);
                     Reg->UpdateComponentToWorld();
                 }
             }
@@ -405,19 +397,20 @@ void FDBSEditorPreviewDrawer::UpdateHitRegistratorShapesVisibilityForAll()
     }
 }
 
-void FDBSEditorPreviewDrawer::RemoveSpawnForComponentSource(USkeletalMeshComponent* Comp, const FString& SourceName)
+void FDBSEditorPreviewDrawer::RemoveDebugActorForComponentSource(USkeletalMeshComponent* Comp, const FString& SourceName)
 {
     if (!Comp) return;
     TMap<FString, TWeakObjectPtr<AActor>>* PerSourcePtr = SpawnedActors.Find(Comp);
     if (!PerSourcePtr) return;
-    TWeakObjectPtr<AActor>& ActorPtr = (*PerSourcePtr).FindOrAdd(SourceName);
-    if (ActorPtr.IsValid())
+    const TWeakObjectPtr<AActor> ActorPtr = PerSourcePtr->FindRef(SourceName);
+    if (AActor* Existing = ActorPtr.Get())
     {
-        if (AActor* Existing = ActorPtr.Get())
-        {
-            Existing->Destroy();
-        }
-        (*PerSourcePtr).Remove(SourceName);
+        Existing->Destroy();
+    }
+    PerSourcePtr->Remove(SourceName);
+    if (PerSourcePtr->IsEmpty())
+    {
+        SpawnedActors.Remove(Comp);
     }
 }
 

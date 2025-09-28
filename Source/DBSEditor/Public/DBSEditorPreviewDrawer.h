@@ -37,7 +37,7 @@ public:
 	void GetActivePreviewMeshes(TArray<USkeletalMesh*>& OutMeshes) const;
 	USkeletalMesh* GetFocusedEditorPreviewMesh() const;
 	void UpdateHitRegistratorShapesVisibilityForAll();
-	void RemoveSpawnForComponentSource(USkeletalMeshComponent* Comp, const FString& SourceName);
+	void RemoveDebugActorForComponentSource(USkeletalMeshComponent* Comp, const FString& SourceName);
 	void RemoveAllForComponent(USkeletalMeshComponent* Comp);
 
 private:

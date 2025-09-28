@@ -831,7 +831,7 @@ void FDBSEditorModule::RemoveDebugActorForMeshSource(USkeletalMesh* Mesh, const 
 			if (!Comp || !Comp->GetWorld() || !Comp->GetWorld()->IsPreviewWorld()) continue;
 			if (Comp->GetSkeletalMeshAsset() == Mesh)
 			{
-				Drawer->RemoveSpawnForComponentSource(Comp, SourceName);
+				Drawer->RemoveDebugActorForComponentSource(Comp, SourceName);
 			}
 		}
 	}

@@ -7,6 +7,8 @@
 
 class FToolBarBuilder;
 class FMenuBuilder;
+class UAnimMontage;
+class USkeletalMesh;
 
 class FDBSEditorModule final : public IModuleInterface
 {
@@ -17,4 +19,9 @@ public:
 	virtual void ShutdownModule() override;
 
 	void HandleObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& Event);
+
+private:
+	void HandleAssetEditorOpened(UObject* Asset);
+	void HandleAssetEditorClosed(UObject* Asset, IAssetEditorInstance* AEI);
+	void SpawnDebugActorsForMesh(USkeletalMesh* Mesh);
 };

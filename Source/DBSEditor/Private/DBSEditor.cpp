@@ -32,6 +32,11 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Animation/AnimSequenceBase.h"
+#include "Animation/AnimMontage.h"
+#include "Animation/Skeleton.h"
+#include "Editor/EditorEngine.h"
 
 static const FName UHLDebugSystemEditorTabName("DBSEditor");
 
@@ -70,6 +75,16 @@ void FDBSEditorModule::StartupModule()
 
 	// Ensure preview drawer singleton exists
 	FDBSEditorPreviewDrawer::Get();
+
+	// Editor-only: listen to asset editor open/close to spawn/respawn DebugActors for montages
+	if (GEditor)
+	{
+		if (UAssetEditorSubsystem* AES = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			AES->OnAssetEditorOpened().AddRaw(this, &FDBSEditorModule::HandleAssetEditorOpened);
+			AES->OnAssetClosedInEditor().AddRaw(this, &FDBSEditorModule::HandleAssetEditorClosed);
+		}
+	}
 
 	// Register a toolbar extender in AnimSequence/Persona/SkeletalMesh editors via ToolMenus
     auto AddDBSToolbarToMenu = [] (const FName MenuName)
@@ -547,6 +562,14 @@ void FDBSEditorModule::ShutdownModule()
 	// }
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+	if (GEditor)
+	{
+		if (UAssetEditorSubsystem* AES = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			AES->OnAssetEditorOpened().RemoveAll(this);
+			AES->OnAssetClosedInEditor().RemoveAll(this);
+		}
+	}
 }
 
 void FDBSEditorModule::HandleObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& Event)
@@ -602,6 +625,98 @@ void FDBSEditorModule::HandleObjectPropertyChanged(UObject* Object, FPropertyCha
 		Comp->Modify();
 		Comp->DamageBehaviorsList = SourceComp->DamageBehaviorsList;
 		// No need to signal UI here; values will persist until next editor refresh
+	}
+}
+
+void FDBSEditorModule::HandleAssetEditorOpened(UObject* Asset)
+{
+	UAnimMontage* Montage = Cast<UAnimMontage>(Asset);
+	if (!Montage)
+	{
+		if (UAnimSequenceBase* Seq = Cast<UAnimSequenceBase>(Asset))
+		{
+			if (USkeleton* Skel = Seq->GetSkeleton())
+			{
+				SpawnDebugActorsForMesh(Skel->GetPreviewMesh());
+			}
+		}
+		return;
+	}
+	if (USkeleton* Skel = Montage->GetSkeleton())
+	{
+		SpawnDebugActorsForMesh(Skel->GetPreviewMesh());
+	}
+}
+
+void FDBSEditorModule::HandleAssetEditorClosed(UObject* Asset, IAssetEditorInstance* AEI)
+{
+	UAnimMontage* Montage = Cast<UAnimMontage>(Asset);
+	USkeletalMesh* Mesh = nullptr;
+	if (Montage)
+	{
+		if (USkeleton* Skel = Montage->GetSkeleton())
+		{
+			Mesh = Skel->GetPreviewMesh();
+		}
+	}
+	else if (UAnimSequenceBase* Seq = Cast<UAnimSequenceBase>(Asset))
+	{
+		if (USkeleton* Skel = Seq->GetSkeleton())
+		{
+			Mesh = Skel->GetPreviewMesh();
+		}
+	}
+	if (!Mesh) return;
+	if (FDBSEditorPreviewDrawer* Drawer = FDBSEditorPreviewDrawer::Get())
+	{
+		// Clear all spawned actors for this mesh
+		USkeletalMeshComponent* Comp = Drawer->FindPreviewMeshCompFor(Mesh);
+		if (Comp)
+		{
+			// Use internal clear helper via bridge: remove all sources by reading current mapping
+			UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+			const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
+			if (Mapping)
+			{
+				for (const FDBSDebugActor& A : Mapping->DebugActors)
+				{
+					FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(Mesh, A.SourceName);
+				}
+			}
+		}
+	}
+}
+
+void FDBSEditorModule::SpawnDebugActorsForMesh(USkeletalMesh* Mesh)
+{
+	if (!Mesh) return;
+	UDamageBehaviorsSystemSettings* S = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+	// Ensure current is initialized from defaults
+	if (!S->CurrentDebugActorsForPreview.FindByKey(Mesh))
+	{
+		if (const FDBSDebugActorsForMesh* Def = S->DefaultDebugActorsForPreview.FindByKey(Mesh))
+		{
+			S->CurrentDebugActorsForPreview.Add(*Def);
+		}
+		else
+		{
+			FDBSDebugActorsForMesh Tmp; Tmp.Mesh = Mesh; S->CurrentDebugActorsForPreview.Add(Tmp);
+		}
+	}
+	const FDBSDebugActorsForMesh* Mapping = S->CurrentDebugActorsForPreview.FindByKey(Mesh);
+	TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
+	if (Mapping)
+	{
+		for (const FDBSDebugActor& A : Mapping->DebugActors)
+		{
+			if (A.SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE) continue;
+			if (!A.bSpawnInPreview) continue;
+			FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = A.SourceName; Info.Actor = A.Actor; Info.bCustomSocketName = A.bCustomSocketName; Info.SocketName = A.SocketName; Infos.Add(Info);
+		}
+	}
+	if (Infos.Num() > 0)
+	{
+		FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(Mesh, Infos);
 	}
 }
 

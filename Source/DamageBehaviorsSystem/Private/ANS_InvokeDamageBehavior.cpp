@@ -264,17 +264,6 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
             PayloadData.Event = EDBSPreviewDebugEvent::Begin;
             PayloadData.HitRegistratorsDescription = HitRegistratorsDescription;
 
-            PayloadData.DebugActorsToSpawn.Reset();
-            for (const FDBSDebugActor& DA : FilledDebugActors)
-            {
-                FDBSPreviewDebugActorSpawnInfo Info;
-                Info.SourceName = DA.SourceName;
-                Info.Actor = DA.Actor;
-                Info.bCustomSocketName = DA.bCustomSocketName;
-                Info.SocketName = DA.SocketName;
-                PayloadData.DebugActorsToSpawn.Add(Info);
-            }
-
             DBS_GetOnPreviewDebugDelegate().Broadcast(PayloadData);
         }
 	}

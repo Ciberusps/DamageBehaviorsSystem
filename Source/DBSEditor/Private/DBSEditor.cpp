@@ -174,11 +174,11 @@ void FDBSEditorModule::StartupModule()
                         const USkeletalMesh* ForcedMesh = bForced ? S->ForcePreviewMeshForDebugUI.Get() : nullptr;
                         const FString MeshLabel = bForced && ForcedMesh ? ForcedMesh->GetName() : (S->CurrentPreviewMeshForDebugUI.IsValid() ? S->CurrentPreviewMeshForDebugUI.Get()->GetName() + TEXT(" (Auto)") : FString(TEXT("<auto>")));
                         TSharedRef<SHorizontalBox> MeshRow = SNew(SHorizontalBox)
-                        + SHorizontalBox::Slot().AutoWidth().Padding(0,0).VAlign(VAlign_Center)
+                        + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(6.0f, 0.0f)).VAlign(VAlign_Center)
                         [ SNew(STextBlock).Text(FText::FromString(TEXT("Current Mesh:"))) ]
-                        + SHorizontalBox::Slot().AutoWidth().Padding(8,0).VAlign(VAlign_Center)
+                        + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(8.0f, 0.0f)).VAlign(VAlign_Center)
                         [ SNew(STextBlock).Text(FText::FromString(MeshLabel)) ]
-                        + SHorizontalBox::Slot().AutoWidth().Padding(12,0).VAlign(VAlign_Center)
+                        + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(12.0f, 0.0f)).VAlign(VAlign_Center)
                         [
                             SNew(SComboButton)
                             .ButtonContent()[ SNew(STextBlock).Text(FText::FromString(TEXT("Choose"))) ]
@@ -251,7 +251,7 @@ void FDBSEditorModule::StartupModule()
 					{
 					   S->CurrentPreviewMeshForDebugUI = TargetMesh;
 					}
-                   
+
                     // Ensure current is initialized lazily from defaults
                     if (TargetMesh && !S->CurrentDebugActorsForPreview.FindByKey(TargetMesh))
                     {
@@ -272,30 +272,30 @@ void FDBSEditorModule::StartupModule()
 
                         SourcesBox->AddSlot()
                         .AutoHeight()
-                        .Padding(FMargin(6.0f, 6.0f))
+                        .Padding(FMargin(6.0f, 3.0f))
                         [
                             SNew(SBorder)
-                            .Padding(FMargin(8.0f))
+                            .Padding(FMargin(6.0f))
                             [
                                 SNew(SVerticalBox)
                                 // Row: Source Name
-                                + SVerticalBox::Slot().AutoHeight().Padding(0,0,0,4)
+                                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0.0f, 0.0f, 0.0f, 4.0f))
                                 [
                                     SNew(SHorizontalBox)
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(0.0f))
                                     [ SNew(STextBlock).Text(FText::FromString(TEXT("Source:"))) ]
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(8.0f, 0.0f))
                                     [ SNew(STextBlock).Text(FText::FromString(Source)) ]
                                 ]
                                 // Row: Class picker
-                                + SVerticalBox::Slot().AutoHeight().Padding(0,0,0,4)
+                                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0.0f, 0.0f, 0.0f, 4.0f))
                                 [
                                     SNew(SHorizontalBox)
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0).VAlign(VAlign_Center)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(0.0f)).VAlign(VAlign_Center)
                                     [ SNew(STextBlock).Text(FText::FromString(TEXT("Class:"))) ]
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0).VAlign(VAlign_Center)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(8.0f, 0.0f)).VAlign(VAlign_Center)
                                     [ SNew(STextBlock).Text(FText::FromString(ClassLabel)) ]
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(12,0).VAlign(VAlign_Center)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(12.0f, 0.0f)).VAlign(VAlign_Center)
                                     [
                                         SNew(SComboButton)
                                         .ButtonContent()
@@ -343,9 +343,9 @@ void FDBSEditorModule::StartupModule()
                                 + SVerticalBox::Slot().AutoHeight()
                                 [
                                     SNew(SHorizontalBox)
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0).VAlign(VAlign_Center)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(0.0f)).VAlign(VAlign_Center)
                                     [ SNew(STextBlock).Text(FText::FromString(TEXT("Socket:"))) ]
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0).VAlign(VAlign_Center)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(8.0f, 0.0f)).VAlign(VAlign_Center)
                                     [
                                         SNew(SEditableTextBox)
                                         .Text(FText::FromString(SocketLabel))
@@ -373,12 +373,12 @@ void FDBSEditorModule::StartupModule()
                                     ]
                                 ]
                                 // Row: Spawn In Preview
-                                + SVerticalBox::Slot().AutoHeight().Padding(0,4,0,0)
+                                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
                                 [
                                     SNew(SHorizontalBox)
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0).VAlign(VAlign_Center)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(0.0f)).VAlign(VAlign_Center)
                                     [ SNew(STextBlock).Text(FText::FromString(TEXT("Spawn In Preview:"))) ]
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0).VAlign(VAlign_Center)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(FMargin(8.0f, 0.0f)).VAlign(VAlign_Center)
                                     [
                                         SNew(SCheckBox)
                                         .IsChecked_Lambda([MappingView, Source]()

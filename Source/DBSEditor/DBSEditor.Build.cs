@@ -28,7 +28,9 @@ public class DBSEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"PropertyEditor",
+				"PropertyEditor", 
+				
+				"DamageBehaviorsSystem",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -45,11 +47,11 @@ public class DBSEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"UnrealEd",
+				"Settings",
+				"ContentBrowser",
 				"DeveloperSettings", 
 				
 				"EditorWidgets", 
-				
-				"DamageBehaviorsSystem",
 				// ... add private dependencies that you statically link with here ...
 			}
 			);

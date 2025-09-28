@@ -9,6 +9,8 @@
 
 class USkeletalMeshComponent;
 class USkeletalMesh;
+class UAnimInstance;
+class UAnimMontage;
 struct FDBSPreviewDebugActorSpawnInfo;
 struct FDBSPreviewDebugPayload;
 class UAssetEditorSubsystem;
@@ -38,6 +40,7 @@ public:
 
 private:
 	void OnPreviewDebug(const FDBSPreviewDebugPayload& Payload);
+	void ClearSpawnForMeshComp(USkeletalMeshComponent* Comp);
 
 private:
 	// Last received data per mesh
@@ -46,6 +49,9 @@ private:
 
 	// Spawned debug actors per mesh and source name
 	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TMap<FString, TWeakObjectPtr<AActor>>> SpawnedActors;
+
+	// Track last seen montage per preview component to detect changes
+	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TWeakObjectPtr<UAnimMontage>> LastSeenMontageByComp;
 };
 
 

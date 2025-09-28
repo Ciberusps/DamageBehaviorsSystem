@@ -17,6 +17,7 @@
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimBlueprint.h"
+#include "Animation/AnimInstance.h"
 #include "Animation/Skeleton.h"
 // Forward declare without including unavailable headers in some engine builds
 class IAssetEditorInstance;
@@ -45,7 +46,18 @@ void FDBSEditorPreviewDrawer::OnPreviewDebug(const FDBSPreviewDebugPayload& Payl
 		bActiveForMesh.Add(Payload.MeshComp, true);
 		LastDescriptions.Add(Payload.MeshComp, Payload.HitRegistratorsDescription);
 
-		// Do not spawn DebugActors here; spawning is handled by the tick and UI actions to avoid duplicates
+		// Despawn previous and spawn new DebugActors from payload
+		if (USkeletalMeshComponent* Comp = Payload.MeshComp.Get())
+		{
+			ClearSpawnForMeshComp(Comp);
+			if (USkeletalMesh* Mesh = Comp->GetSkeletalMeshAsset())
+			{
+				if (Payload.DebugActorsToSpawn.Num() > 0)
+				{
+					ApplySpawnForMesh(Mesh, Payload.DebugActorsToSpawn);
+				}
+			}
+		}
 		break;
 	case EDBSPreviewDebugEvent::Tick:
 		LastDescriptions.FindOrAdd(Payload.MeshComp) = Payload.HitRegistratorsDescription;
@@ -57,7 +69,11 @@ void FDBSEditorPreviewDrawer::OnPreviewDebug(const FDBSPreviewDebugPayload& Payl
 			LastDescriptions.Remove(Payload.MeshComp);
 		}
 
-		// Do not destroy spawned actors on End; keep them until user re-applies or clears manually
+		// Despawn on End to avoid stale actors between montages
+		if (USkeletalMeshComponent* Comp = Payload.MeshComp.Get())
+		{
+			ClearSpawnForMeshComp(Comp);
+		}
 		break;
 	}
 }
@@ -67,37 +83,53 @@ void FDBSEditorPreviewDrawer::Tick(float DeltaTime)
 	UDamageBehaviorsSystemSettings* Settings = GetMutableDefault<UDamageBehaviorsSystemSettings>();
 	if (!Settings->bEnableEditorDebugDraw) return;
 
-    // Auto-spawn per-source defaults for any preview skeletal mesh
-    for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
-    {
-        USkeletalMeshComponent* Comp = *It;
-        if (!Comp || !Comp->GetWorld() || !Comp->GetWorld()->IsPreviewWorld()) continue;
-        USkeletalMesh* Mesh = Comp->GetSkeletalMeshAsset();
-        if (!Mesh) continue;
-        UDamageBehaviorsSystemSettings* S = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-        // Ensure current is initialized
-        if (Mesh && !S->CurrentDebugActorsForPreview.FindByKey(Mesh))
-        {
-            const FDBSDebugActorsForMesh* Def = S->DefaultDebugActorsForPreview.FindByKey(Mesh);
-            if (Def) { S->CurrentDebugActorsForPreview.Add(*Def); }
-            else { FDBSDebugActorsForMesh Tmp; Tmp.Mesh = Mesh; S->CurrentDebugActorsForPreview.Add(Tmp); }
-        }
-        const FDBSDebugActorsForMesh* Mapping = S->CurrentDebugActorsForPreview.FindByKey(Mesh);
-        if (!Mapping) continue;
-        TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
-        for (const FDBSDebugActor& A : Mapping->DebugActors)
-        {
-            if (A.SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE) continue;
-            if (!A.bSpawnInPreview) continue;
-            FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = A.SourceName; Info.Actor = A.Actor; Info.bCustomSocketName = A.bCustomSocketName; Info.SocketName = A.SocketName; Infos.Add(Info);
-        }
-        if (Infos.Num() > 0)
-        {
-            ApplySpawnForMesh(Mesh, Infos);
-        }
-    }
+	// Auto-spawn per-source defaults for any preview skeletal mesh
+	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+	{
+		USkeletalMeshComponent* Comp = *It;
+		if (!Comp || !Comp->GetWorld() || !Comp->GetWorld()->IsPreviewWorld()) continue;
+		USkeletalMesh* Mesh = Comp->GetSkeletalMeshAsset();
+		if (!Mesh) continue;
 
-    for (auto& Pair : LastDescriptions)
+		// Subscribe once per anim instance to detect montage changes and clear spawned actors
+		if (UAnimInstance* AnimInst = Comp->GetAnimInstance())
+		{
+			UAnimMontage* Current = AnimInst->GetCurrentActiveMontage();
+			UAnimMontage* Last = LastSeenMontageByComp.FindRef(Comp).Get();
+			if (Current != Last)
+			{
+				// Montage changed: clear existing debug actors; Begin payload will repopulate
+				ClearSpawnForMeshComp(Comp);
+				LastSeenMontageByComp.Add(Comp, Current);
+			}
+		}
+
+		UDamageBehaviorsSystemSettings* S = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+		// Ensure current is initialized
+		if (Mesh && !S->CurrentDebugActorsForPreview.FindByKey(Mesh))
+		{
+			const FDBSDebugActorsForMesh* Def = S->DefaultDebugActorsForPreview.FindByKey(Mesh);
+			if (Def) { S->CurrentDebugActorsForPreview.Add(*Def); }
+			else { FDBSDebugActorsForMesh Tmp; Tmp.Mesh = Mesh; S->CurrentDebugActorsForPreview.Add(Tmp); }
+		}
+		const FDBSDebugActorsForMesh* Mapping = S->CurrentDebugActorsForPreview.FindByKey(Mesh);
+		if (!Mapping) continue;
+		// Skip auto-spawn during active preview session to avoid duplicates
+		if (bActiveForMesh.FindRef(Comp)) { continue; }
+		TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
+		for (const FDBSDebugActor& A : Mapping->DebugActors)
+		{
+			if (A.SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE) continue;
+			if (!A.bSpawnInPreview) continue;
+			FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = A.SourceName; Info.Actor = A.Actor; Info.bCustomSocketName = A.bCustomSocketName; Info.SocketName = A.SocketName; Infos.Add(Info);
+		}
+		if (Infos.Num() > 0)
+		{
+			ApplySpawnForMesh(Mesh, Infos);
+		}
+	}
+
+	for (auto& Pair : LastDescriptions)
 	{
 		USkeletalMeshComponent* MeshComp = Pair.Key.Get();
 		if (!MeshComp) continue;
@@ -341,29 +373,22 @@ void FDBSEditorPreviewDrawer::ApplySpawnForMesh(USkeletalMesh* Mesh, const TArra
 			PerSource.Remove(Info.SourceName);
 			Existing = nullptr;
 		}
-		if (!Existing)
+		if (!Existing || Existing->IsActorBeingDestroyed() || !IsValid(Existing))
 		{
 			FActorSpawnParameters Params; Params.ObjectFlags |= RF_Transient;
 			Existing = World->SpawnActor<AActor>(DesiredClass, FTransform::Identity, Params);
+			if (!IsValid(Existing))
+			{
+				PerSource.Remove(Info.SourceName);
+				continue;
+			}
 			PerSource.Add(Info.SourceName, Existing);
 		}
 
 		const FName Socket = Info.bCustomSocketName ? Info.SocketName : NAME_None;
-		if (Socket != NAME_None)
-		{
-			Existing->AttachToComponent(Comp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
-		}
-		else
-		{
-			if (Socket != NAME_None)
-			{
-				Existing->SetActorTransform(Comp->GetSocketTransform(Socket, RTS_World));
-			}
-			else
-			{
-				Existing->SetActorTransform(Comp->GetComponentTransform());
-			}
-		}
+		if (!IsValid(Comp) || Comp->IsBeingDestroyed()) { continue; }
+		if (!IsValid(Existing) || Existing->IsActorBeingDestroyed()) { continue; }
+		Existing->AttachToComponent(Comp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
 
 		// Apply HitRegistrator shapes visibility on initial spawn/respawn
 		{
@@ -427,6 +452,21 @@ void FDBSEditorPreviewDrawer::RemoveSpawnForMeshSource(USkeletalMesh* Mesh, cons
         }
         (*PerSourcePtr).Remove(SourceName);
     }
+}
+
+void FDBSEditorPreviewDrawer::ClearSpawnForMeshComp(USkeletalMeshComponent* Comp)
+{
+	if (!Comp) return;
+	TMap<FString, TWeakObjectPtr<AActor>>* PerSourcePtr = SpawnedActors.Find(Comp);
+	if (!PerSourcePtr) return;
+	for (auto& Pair : *PerSourcePtr)
+	{
+		if (AActor* Existing = Pair.Value.Get())
+		{
+			Existing->Destroy();
+		}
+	}
+	SpawnedActors.Remove(Comp);
 }
 
 

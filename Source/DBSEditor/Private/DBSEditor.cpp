@@ -416,18 +416,22 @@ void FDBSEditorModule::StartupModule()
                         FSlateIcon(),
                         FUIAction(FExecuteAction::CreateLambda([]
                         {
-                            // Resolve mesh
-                            FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-                            TArray<FAssetData> Selection; CBModule.Get().GetSelectedAssets(Selection);
-                            USkeletalMesh* Mesh = nullptr;
-                            for (const FAssetData& A : Selection)
+                            UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+                            // Resolve target mesh: forced, then current auto (focused), then CB selection, finally any active
+                            USkeletalMesh* Mesh = SettingsLocal->ForcePreviewMeshForDebugUI.IsValid() ? SettingsLocal->ForcePreviewMeshForDebugUI.Get() : (SettingsLocal->CurrentPreviewMeshForDebugUI.IsValid() ? SettingsLocal->CurrentPreviewMeshForDebugUI.Get() : nullptr);
+                            if (!Mesh) { Mesh = FDBSEditorPreviewDrawer::Get()->GetFocusedEditorPreviewMesh(); }
+                            if (!Mesh)
                             {
-                                if (USkeletalMesh* SM = Cast<USkeletalMesh>(A.GetAsset())) { Mesh = SM; break; }
+                                FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+                                TArray<FAssetData> Selection; CBModule.Get().GetSelectedAssets(Selection);
+                                for (const FAssetData& A : Selection)
+                                {
+                                    if (USkeletalMesh* SM = Cast<USkeletalMesh>(A.GetAsset())) { Mesh = SM; break; }
+                                }
                             }
                             if (!Mesh) Mesh = FDBSEditorPreviewDrawer::Get()->GetAnyActiveMesh();
                             if (!Mesh) return;
 
-                            UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
                             const FDBSDebugActorsForMesh* Def = SettingsLocal->DefaultDebugActorsForPreview.FindByKey(Mesh);
                             FDBSDebugActorsForMesh* Curr = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
                             if (Def)
@@ -441,7 +445,7 @@ void FDBSEditorModule::StartupModule()
                                 else { FDBSDebugActorsForMesh Tmp; Tmp.Mesh = Mesh; SettingsLocal->CurrentDebugActorsForPreview.Add(Tmp); }
                             }
 
-                            // Apply with per-source filtering
+                            // Apply immediately: remove disabled, respawn enabled sources
                             const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
                             TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
                             if (Mapping)
@@ -449,7 +453,11 @@ void FDBSEditorModule::StartupModule()
                                 for (const FDBSDebugActor& A : Mapping->DebugActors)
                                 {
                                     if (A.SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE) continue;
-                                    if (!A.bSpawnInPreview) { FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(Mesh, A.SourceName); continue; }
+                                    if (!A.bSpawnInPreview)
+                                    {
+                                        FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(Mesh, A.SourceName);
+                                        continue;
+                                    }
                                     FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = A.SourceName; Info.Actor = A.Actor; Info.bCustomSocketName = A.bCustomSocketName; Info.SocketName = A.SocketName; Infos.Add(Info);
                                 }
                             }

@@ -103,7 +103,7 @@ void FDBSEditorModule::StartupModule()
 						}
 					}
                     MenuBuilder.AddMenuEntry(
-                        FText::FromString("Enable Editor Debug Draw"),
+                        FText::FromString("Draw Debug"),
                         FText::FromString("Toggle drawing DBS capsules in preview"),
                         FSlateIcon(),
                         FUIAction(
@@ -156,11 +156,11 @@ void FDBSEditorModule::StartupModule()
                         const USkeletalMesh* ForcedMesh = bForced ? S->ForcePreviewMeshForDebugUI.Get() : nullptr;
                         const FString MeshLabel = bForced && ForcedMesh ? ForcedMesh->GetName() : (S->CurrentPreviewMeshForDebugUI.IsValid() ? S->CurrentPreviewMeshForDebugUI.Get()->GetName() + TEXT(" (Auto)") : FString(TEXT("<auto>")));
                         TSharedRef<SHorizontalBox> MeshRow = SNew(SHorizontalBox)
-                        + SHorizontalBox::Slot().AutoWidth().Padding(4,2)
+                        + SHorizontalBox::Slot().AutoWidth().Padding(0,0).VAlign(VAlign_Center)
                         [ SNew(STextBlock).Text(FText::FromString(TEXT("Current Mesh:"))) ]
-                        + SHorizontalBox::Slot().AutoWidth().Padding(8,2)
+                        + SHorizontalBox::Slot().AutoWidth().Padding(8,0).VAlign(VAlign_Center)
                         [ SNew(STextBlock).Text(FText::FromString(MeshLabel)) ]
-                        + SHorizontalBox::Slot().AutoWidth().Padding(12,2)
+                        + SHorizontalBox::Slot().AutoWidth().Padding(12,0).VAlign(VAlign_Center)
                         [
                             SNew(SComboButton)
                             .ButtonContent()[ SNew(STextBlock).Text(FText::FromString(TEXT("Choose"))) ]
@@ -273,11 +273,11 @@ void FDBSEditorModule::StartupModule()
                                 + SVerticalBox::Slot().AutoHeight().Padding(0,0,0,4)
                                 [
                                     SNew(SHorizontalBox)
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0).VAlign(VAlign_Center)
                                     [ SNew(STextBlock).Text(FText::FromString(TEXT("Class:"))) ]
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0).VAlign(VAlign_Center)
                                     [ SNew(STextBlock).Text(FText::FromString(ClassLabel)) ]
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(12,0)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(12,0).VAlign(VAlign_Center)
                                     [
                                         SNew(SComboButton)
                                         .ButtonContent()
@@ -324,9 +324,9 @@ void FDBSEditorModule::StartupModule()
                                 + SVerticalBox::Slot().AutoHeight()
                                 [
                                     SNew(SHorizontalBox)
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0).VAlign(VAlign_Center)
                                     [ SNew(STextBlock).Text(FText::FromString(TEXT("Socket:"))) ]
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0).VAlign(VAlign_Center)
                                     [
                                         SNew(SEditableTextBox)
                                         .Text(FText::FromString(SocketLabel))
@@ -357,9 +357,9 @@ void FDBSEditorModule::StartupModule()
                                 + SVerticalBox::Slot().AutoHeight().Padding(0,4,0,0)
                                 [
                                     SNew(SHorizontalBox)
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0).VAlign(VAlign_Center)
                                     [ SNew(STextBlock).Text(FText::FromString(TEXT("Spawn In Preview:"))) ]
-                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0).VAlign(VAlign_Center)
                                     [
                                         SNew(SCheckBox)
                                         .IsChecked_Lambda([MappingView, Source]()
@@ -399,9 +399,10 @@ void FDBSEditorModule::StartupModule()
                     MenuBuilder.AddWidget(SourcesBox, FText::GetEmpty(), false);
                     MenuBuilder.EndSection();
 
-                    MenuBuilder.AddMenuSeparator();
+                    // Actions section
+                    MenuBuilder.BeginSection(NAME_None, FText::FromString(TEXT("Actions")));
                     // Removed explicit Apply; changes are now applied immediately
-                    
+
                     MenuBuilder.AddMenuEntry(
                         FText::FromString(TEXT("Save as Defaults")),
                         FText::FromString(TEXT("Copy current mesh mapping to defaults")),
@@ -437,7 +438,7 @@ void FDBSEditorModule::StartupModule()
                     );
 
                     MenuBuilder.AddMenuEntry(
-                        FText::FromString(TEXT("Reset To Defaults")),
+                        FText::FromString(TEXT("Reset to Default")),
                         FText::FromString(TEXT("Reset current mesh mapping to defaults and apply")),
                         FSlateIcon(),
                         FUIAction(FExecuteAction::CreateLambda([]
@@ -507,6 +508,7 @@ void FDBSEditorModule::StartupModule()
                             Settings.ShowViewer("Project", CategoryName, TEXT("DamageBehaviorsSystemSettings"));
                         }))
                     );
+                    MenuBuilder.EndSection();
 
                     return MenuBuilder.MakeWidget();
                 }),

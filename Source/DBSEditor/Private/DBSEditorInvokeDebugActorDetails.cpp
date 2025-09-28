@@ -22,30 +22,36 @@ void FDBSEditorInvokeDebugActorDetails::CustomizeHeader(TSharedRef<IPropertyHand
 
 void FDBSEditorInvokeDebugActorDetails::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-    TSharedPtr<IPropertyHandle> SourceNameHandle = StructPropertyHandle->GetChildHandle(TEXT("SourceName"));
-    TSharedPtr<IPropertyHandle> ActorHandle = StructPropertyHandle->GetChildHandle(TEXT("Actor"));
-    TSharedPtr<IPropertyHandle> bCustomSocketHandle = StructPropertyHandle->GetChildHandle(TEXT("bCustomSocketName"));
-    TSharedPtr<IPropertyHandle> SocketNameHandle = StructPropertyHandle->GetChildHandle(TEXT("SocketName"));
+	TSharedPtr<IPropertyHandle> SourceNameHandle = StructPropertyHandle->GetChildHandle(TEXT("SourceName"));
+	TSharedPtr<IPropertyHandle> ActorHandle = StructPropertyHandle->GetChildHandle(TEXT("Actor"));
+	TSharedPtr<IPropertyHandle> bCustomSocketHandle = StructPropertyHandle->GetChildHandle(TEXT("bCustomSocketName"));
+	TSharedPtr<IPropertyHandle> SocketNameHandle = StructPropertyHandle->GetChildHandle(TEXT("SocketName"));
+	TSharedPtr<IPropertyHandle> SpawnInPreviewHandle = StructPropertyHandle->GetChildHandle(TEXT("bSpawnInPreview"));
 
-    if (SourceNameHandle.IsValid())
-    {
-        ChildBuilder.AddProperty(SourceNameHandle.ToSharedRef());
-    }
+	if (SourceNameHandle.IsValid())
+	{
+		ChildBuilder.AddProperty(SourceNameHandle.ToSharedRef());
+	}
 
-    if (ActorHandle.IsValid())
-    {
-        ChildBuilder.AddProperty(ActorHandle.ToSharedRef());
-    }
+	if (ActorHandle.IsValid())
+	{
+		ChildBuilder.AddProperty(ActorHandle.ToSharedRef());
+	}
 
-    if (bCustomSocketHandle.IsValid())
-    {
-        ChildBuilder.AddProperty(bCustomSocketHandle.ToSharedRef());
-    }
+	if (bCustomSocketHandle.IsValid())
+	{
+		ChildBuilder.AddProperty(bCustomSocketHandle.ToSharedRef());
+	}
 
-    if (SocketNameHandle.IsValid())
-    {
-        ChildBuilder.AddProperty(SocketNameHandle.ToSharedRef());
-    }
+	if (SocketNameHandle.IsValid())
+	{
+		ChildBuilder.AddProperty(SocketNameHandle.ToSharedRef());
+	}
+
+	if (SpawnInPreviewHandle.IsValid())
+	{
+		ChildBuilder.AddProperty(SpawnInPreviewHandle.ToSharedRef());
+	}
 }
 
 

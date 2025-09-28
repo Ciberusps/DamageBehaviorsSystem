@@ -27,11 +27,11 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Framework/Docking/TabManager.h"
 
 static const FName UHLDebugSystemEditorTabName("DBSEditor");
 
@@ -93,15 +93,23 @@ void FDBSEditorModule::StartupModule()
                         GetMutableDefault<UDamageBehaviorsSystemSettings>()->SaveConfig();
                     };
 
-                    UDamageBehaviorsSystemSettings* Settings = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+                    UDamageBehaviorsSystemSettings* S = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+					// If not forced, follow the focused asset editor's preview mesh (AnimMontage/AnimSequence/AnimBlueprint/Skeleton)
+					if (!S->ForcePreviewMeshForDebugUI.IsValid())
+					{
+						if (USkeletalMesh* FocusedMesh = FDBSEditorPreviewDrawer::Get()->GetFocusedEditorPreviewMesh())
+						{
+							S->CurrentPreviewMeshForDebugUI = FocusedMesh;
+						}
+					}
                     MenuBuilder.AddMenuEntry(
                         FText::FromString("Enable Editor Debug Draw"),
                         FText::FromString("Toggle drawing DBS capsules in preview"),
                         FSlateIcon(),
                         FUIAction(
-                            FExecuteAction::CreateLambda([Settings, ToggleBoolSetting]() mutable { ToggleBoolSetting(Settings->bEnableEditorDebugDraw); }),
+                            FExecuteAction::CreateLambda([S, ToggleBoolSetting]() mutable { ToggleBoolSetting(S->bEnableEditorDebugDraw); }),
                             FCanExecuteAction(),
-                            FIsActionChecked::CreateLambda([Settings]() { return Settings->bEnableEditorDebugDraw; })
+                            FIsActionChecked::CreateLambda([S]() { return S->bEnableEditorDebugDraw; })
                         ),
                         NAME_None,
                         EUserInterfaceActionType::ToggleButton
@@ -112,39 +120,59 @@ void FDBSEditorModule::StartupModule()
                         FText::FromString("Keep last draw when montage is paused"),
                         FSlateIcon(),
                         FUIAction(
-                            FExecuteAction::CreateLambda([Settings, ToggleBoolSetting]() mutable { ToggleBoolSetting(Settings->bPreserveDrawOnPause); }),
+                            FExecuteAction::CreateLambda([S, ToggleBoolSetting]() mutable { ToggleBoolSetting(S->bPreserveDrawOnPause); }),
                             FCanExecuteAction(),
-                            FIsActionChecked::CreateLambda([Settings]() { return Settings->bPreserveDrawOnPause; })
+                            FIsActionChecked::CreateLambda([S]() { return S->bPreserveDrawOnPause; })
                         ),
                         NAME_None,
                         EUserInterfaceActionType::ToggleButton
                     );
 
-                    MenuBuilder.AddMenuEntry(
-                        FText::FromString("Spawn DebugActors In Preview"),
-                        FText::FromString("Spawn debug actors in Anim preview world"),
-                        FSlateIcon(),
-                        FUIAction(
-                            FExecuteAction::CreateLambda([Settings, ToggleBoolSetting]() mutable { ToggleBoolSetting(Settings->bSpawnDebugActorsInPreview); }),
-                            FCanExecuteAction(),
-                            FIsActionChecked::CreateLambda([Settings]() { return Settings->bSpawnDebugActorsInPreview; })
-                        ),
-                        NAME_None,
-                        EUserInterfaceActionType::ToggleButton
-                    );
+                    // Do NOT auto-write forced mesh here; only set when user chooses explicitly
 
-                    // Build dynamic per-source editor UI
-                    UDamageBehaviorsSystemSettings* S = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-                    // Resolve target mesh from selection or active preview
-                    USkeletalMesh* TargetMesh = nullptr;
+                    // Force Debug Mesh selector (if multiple previews)
                     {
-                        FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-                        TArray<FAssetData> Selection; CBModule.Get().GetSelectedAssets(Selection);
-                        for (const FAssetData& A : Selection)
-                        {
-                            if (USkeletalMesh* SM = Cast<USkeletalMesh>(A.GetAsset())) { TargetMesh = SM; break; }
-                        }
-                        if (!TargetMesh) { TargetMesh = FDBSEditorPreviewDrawer::Get()->GetAnyActiveMesh(); }
+                        TArray<USkeletalMesh*> ActiveMeshes; FDBSEditorPreviewDrawer::Get()->GetActivePreviewMeshes(ActiveMeshes);
+                        const bool bForced = S->ForcePreviewMeshForDebugUI.IsValid();
+                        const USkeletalMesh* ForcedMesh = bForced ? S->ForcePreviewMeshForDebugUI.Get() : nullptr;
+                        const FString MeshLabel = bForced && ForcedMesh ? ForcedMesh->GetName() : (S->CurrentPreviewMeshForDebugUI.IsValid() ? S->CurrentPreviewMeshForDebugUI.Get()->GetName() + TEXT(" (Auto)") : FString(TEXT("<auto>")));
+                        TSharedRef<SHorizontalBox> MeshRow = SNew(SHorizontalBox)
+                        + SHorizontalBox::Slot().AutoWidth().Padding(4,2)
+                        [ SNew(STextBlock).Text(FText::FromString(TEXT("Current Mesh:"))) ]
+                        + SHorizontalBox::Slot().AutoWidth().Padding(8,2)
+                        [ SNew(STextBlock).Text(FText::FromString(MeshLabel)) ]
+                        + SHorizontalBox::Slot().AutoWidth().Padding(12,2)
+                        [
+                            SNew(SComboButton)
+                            .ButtonContent()[ SNew(STextBlock).Text(FText::FromString(TEXT("Choose"))) ]
+                            .OnGetMenuContent_Lambda([ActiveMeshes, S]() -> TSharedRef<SWidget>
+                            {
+                                FMenuBuilder MeshMenu(true, nullptr);
+                                // Auto option clears the force
+                                MeshMenu.AddMenuEntry(
+                                    FText::FromString(TEXT("Auto (follow active tab)")),
+                                    FText::GetEmpty(), FSlateIcon(),
+                                    FUIAction(FExecuteAction::CreateLambda([S]()
+                                    {
+                                        S->ForcePreviewMeshForDebugUI = nullptr;
+                                        FSlateApplication::Get().DismissAllMenus();
+                                    }))
+                                );
+                                MeshMenu.AddMenuSeparator();
+                                for (USkeletalMesh* M : ActiveMeshes)
+                                {
+                                    if (!M) continue;
+                                    const FText Label = FText::FromString(M->GetName());
+                                    MeshMenu.AddMenuEntry(Label, FText::GetEmpty(), FSlateIcon(), FUIAction(FExecuteAction::CreateLambda([S, M]()
+                                    {
+                                        S->ForcePreviewMeshForDebugUI = M;
+                                        FSlateApplication::Get().DismissAllMenus();
+                                    })));
+                                }
+                                return MeshMenu.MakeWidget();
+                            })
+                        ];
+                        MenuBuilder.AddWidget(MeshRow, FText::GetEmpty(), false);
                     }
 
                     TArray<FString> SourceNames;
@@ -157,13 +185,50 @@ void FDBSEditorModule::StartupModule()
                     MenuBuilder.AddMenuSeparator();
                     MenuBuilder.BeginSection(NAME_None, FText::FromString(TEXT("Per-Source DebugActors")));
                     TSharedRef<SVerticalBox> SourcesBox = SNew(SVerticalBox);
-                    const FDBSInvokeDamageBehaviorDebugForMesh* MappingView = TargetMesh ? S->DebugActors.FindByKey(TargetMesh) : nullptr;
+                    // Resolve target mesh: forced mesh or current auto selection
+					USkeletalMesh* TargetMesh = S->ForcePreviewMeshForDebugUI.IsValid() ? S->ForcePreviewMeshForDebugUI.Get() : (S->CurrentPreviewMeshForDebugUI.IsValid() ? S->CurrentPreviewMeshForDebugUI.Get() : nullptr);
+                    if (!TargetMesh)
+                    {
+						// Prefer focused asset editor's preview mesh if available
+						if (USkeletalMesh* FocusedMesh = FDBSEditorPreviewDrawer::Get()->GetFocusedEditorPreviewMesh())
+						{
+							TargetMesh = FocusedMesh;
+						}
+					}
+					if (!TargetMesh)
+					{
+                        TArray<USkeletalMesh*> ActiveMeshes; FDBSEditorPreviewDrawer::Get()->GetActivePreviewMeshes(ActiveMeshes);
+                        if (ActiveMeshes.Num() > 0) { TargetMesh = ActiveMeshes[0]; }
+                        if (!TargetMesh)
+                        {
+                            FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+                            TArray<FAssetData> Selection; CBModule.Get().GetSelectedAssets(Selection);
+                            for (const FAssetData& A : Selection)
+                            {
+                                if (USkeletalMesh* SM = Cast<USkeletalMesh>(A.GetAsset())) { TargetMesh = SM; break; }
+                            }
+                        }
+                    }
+                	// Lock current auto-selected mesh at menu open (only if not forced)
+					if (TargetMesh && !S->ForcePreviewMeshForDebugUI.IsValid())
+					{
+					   S->CurrentPreviewMeshForDebugUI = TargetMesh;
+					}
+                   
+                    // Ensure current is initialized lazily from defaults
+                    if (TargetMesh && !S->CurrentDebugActorsForPreview.FindByKey(TargetMesh))
+                    {
+                        const FDBSDebugActorsForMesh* Def = S->DefaultDebugActorsForPreview.FindByKey(TargetMesh);
+                        if (Def) { S->CurrentDebugActorsForPreview.Add(*Def); }
+                        else { FDBSDebugActorsForMesh Tmp; Tmp.Mesh = TargetMesh; S->CurrentDebugActorsForPreview.Add(Tmp); }
+                    }
+                    const FDBSDebugActorsForMesh* MappingView = TargetMesh ? S->CurrentDebugActorsForPreview.FindByKey(TargetMesh) : nullptr;
                     for (const FString& Source : SourceNames)
                     {
-                        const FDBSInvokeDamageBehaviorDebugActor* Found = nullptr;
+                        const FDBSDebugActor* Found = nullptr;
                         if (MappingView)
                         {
-                            Found = MappingView->DebugActors.FindByPredicate([&Source](const FDBSInvokeDamageBehaviorDebugActor& E){ return E.SourceName == Source; });
+                            Found = MappingView->DebugActors.FindByPredicate([&Source](const FDBSDebugActor& E){ return E.SourceName == Source; });
                         }
                         const FString ClassLabel = Found && Found->Actor.IsValid() ? Found->Actor.GetAssetName() : FString(TEXT("<none>"));
                         const FString SocketLabel = Found && Found->bCustomSocketName ? Found->SocketName.ToString() : FString();
@@ -211,10 +276,10 @@ void FDBSEditorModule::StartupModule()
                                                 UBlueprint* BP = Cast<UBlueprint>(Asset.GetAsset());
                                                 if (!BP || !BP->GeneratedClass) return;
                                                 UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-                                                FDBSInvokeDamageBehaviorDebugForMesh* Mapping = SettingsLocal->DebugActors.FindByKey(TargetMesh);
-                                                if (!Mapping) { const int32 NewIdx = SettingsLocal->DebugActors.AddDefaulted(); Mapping = &SettingsLocal->DebugActors[NewIdx]; Mapping->Mesh = TargetMesh; }
-                                                FDBSInvokeDamageBehaviorDebugActor* Existing = Mapping->DebugActors.FindByPredicate([&Source](const FDBSInvokeDamageBehaviorDebugActor& E){ return E.SourceName == Source; });
-                                                if (!Existing) { FDBSInvokeDamageBehaviorDebugActor NewEntry; NewEntry.SourceName = Source; NewEntry.Actor = BP->GeneratedClass; Mapping->DebugActors.Add(NewEntry); }
+                                                FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(TargetMesh);
+                                                if (!Mapping) { const int32 NewIdx = SettingsLocal->CurrentDebugActorsForPreview.AddDefaulted(); Mapping = &SettingsLocal->CurrentDebugActorsForPreview[NewIdx]; Mapping->Mesh = TargetMesh; }
+                                                FDBSDebugActor* Existing = Mapping->DebugActors.FindByPredicate([&Source](const FDBSDebugActor& E){ return E.SourceName == Source; });
+                                                if (!Existing) { FDBSDebugActor NewEntry; NewEntry.SourceName = Source; NewEntry.Actor = BP->GeneratedClass; Mapping->DebugActors.Add(NewEntry); }
                                                 else { Existing->Actor = BP->GeneratedClass; }
                                                 SettingsLocal->SaveConfig();
                                                 FSlateApplication::Get().DismissAllMenus();
@@ -237,13 +302,41 @@ void FDBSEditorModule::StartupModule()
                                         {
                                             if (!TargetMesh) return;
                                             UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-                                            FDBSInvokeDamageBehaviorDebugForMesh* Mapping = SettingsLocal->DebugActors.FindByKey(TargetMesh);
-                                            if (!Mapping) { const int32 NewIdx = SettingsLocal->DebugActors.AddDefaulted(); Mapping = &SettingsLocal->DebugActors[NewIdx]; Mapping->Mesh = TargetMesh; }
-                                            FDBSInvokeDamageBehaviorDebugActor* Existing = Mapping->DebugActors.FindByPredicate([&Source](const FDBSInvokeDamageBehaviorDebugActor& E){ return E.SourceName == Source; });
-                                            if (!Existing) { FDBSInvokeDamageBehaviorDebugActor NewEntry; NewEntry.SourceName = Source; Mapping->DebugActors.Add(NewEntry); Existing = &Mapping->DebugActors.Last(); }
+                                            FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(TargetMesh);
+                                            if (!Mapping) { const int32 NewIdx = SettingsLocal->CurrentDebugActorsForPreview.AddDefaulted(); Mapping = &SettingsLocal->CurrentDebugActorsForPreview[NewIdx]; Mapping->Mesh = TargetMesh; }
+                                            FDBSDebugActor* Existing = Mapping->DebugActors.FindByPredicate([&Source](const FDBSDebugActor& E){ return E.SourceName == Source; });
+                                            if (!Existing) { FDBSDebugActor NewEntry; NewEntry.SourceName = Source; Mapping->DebugActors.Add(NewEntry); Existing = &Mapping->DebugActors.Last(); }
                                             const FString Str = NewText.ToString();
                                             Existing->bCustomSocketName = !Str.IsEmpty();
                                             Existing->SocketName = FName(Str);
+                                            SettingsLocal->SaveConfig();
+                                        })
+                                    ]
+                                ]
+                                // Row: Spawn In Preview
+                                + SVerticalBox::Slot().AutoHeight().Padding(0,4,0,0)
+                                [
+                                    SNew(SHorizontalBox)
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(0,0)
+                                    [ SNew(STextBlock).Text(FText::FromString(TEXT("Spawn In Preview:"))) ]
+                                    + SHorizontalBox::Slot().AutoWidth().Padding(8,0)
+                                    [
+                                        SNew(SCheckBox)
+                                        .IsChecked_Lambda([MappingView, Source]()
+                                        {
+                                            if (!MappingView) return ECheckBoxState::Unchecked;
+                                            const FDBSDebugActor* E = MappingView->DebugActors.FindByPredicate([&Source](const FDBSDebugActor& X){ return X.SourceName == Source; });
+                                            return (E && E->bSpawnInPreview) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+                                        })
+                                        .OnCheckStateChanged_Lambda([TargetMesh, Source](ECheckBoxState NewState)
+                                        {
+                                            if (!TargetMesh) return;
+                                            UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+                                            FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(TargetMesh);
+                                            if (!Mapping) { const int32 NewIdx = SettingsLocal->CurrentDebugActorsForPreview.AddDefaulted(); Mapping = &SettingsLocal->CurrentDebugActorsForPreview[NewIdx]; Mapping->Mesh = TargetMesh; }
+                                            FDBSDebugActor* Existing = Mapping->DebugActors.FindByPredicate([&Source](const FDBSDebugActor& X){ return X.SourceName == Source; });
+                                            if (!Existing) { FDBSDebugActor NewEntry; NewEntry.SourceName = Source; Mapping->DebugActors.Add(NewEntry); Existing = &Mapping->DebugActors.Last(); }
+                                            Existing->bSpawnInPreview = (NewState == ECheckBoxState::Checked);
                                             SettingsLocal->SaveConfig();
                                         })
                                     ]
@@ -275,15 +368,11 @@ void FDBSEditorModule::StartupModule()
                             }
                             if (!Mesh) return;
 
-                            const FDBSInvokeDamageBehaviorDebugForMesh* Mapping = SettingsLocal->DebugActors.FindByKey(Mesh);
-                            if (!Mapping)
-                            {
-                                Mapping = &SettingsLocal->FallbackDebugMesh;
-                            }
+                            const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
                             TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
                             if (Mapping)
                             {
-                                for (const FDBSInvokeDamageBehaviorDebugActor& A : Mapping->DebugActors)
+                                for (const FDBSDebugActor& A : Mapping->DebugActors)
                                 {
                                     FDBSPreviewDebugActorSpawnInfo Info;
                                     Info.SourceName = A.SourceName;
@@ -299,7 +388,7 @@ void FDBSEditorModule::StartupModule()
 
                     MenuBuilder.AddMenuEntry(
                         FText::FromString(TEXT("Save To Defaults")),
-                        FText::FromString(TEXT("Ensure current mesh mapping is saved in Debug Actors")),
+                        FText::FromString(TEXT("Copy current mesh mapping to defaults")),
                         FSlateIcon(),
                         FUIAction(FExecuteAction::CreateLambda([]
                         {
@@ -313,14 +402,61 @@ void FDBSEditorModule::StartupModule()
                             if (!Mesh) Mesh = FDBSEditorPreviewDrawer::Get()->GetAnyActiveMesh();
                             if (!Mesh) return;
                             UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-                            FDBSInvokeDamageBehaviorDebugForMesh* Mapping = SettingsLocal->DebugActors.FindByKey(Mesh);
-                            if (!Mapping)
+                            const FDBSDebugActorsForMesh* Curr = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
+                            if (Curr)
                             {
-                                const int32 NewIdx = SettingsLocal->DebugActors.AddDefaulted();
-                                Mapping = &SettingsLocal->DebugActors[NewIdx];
-                                Mapping->Mesh = Mesh;
+                                FDBSDebugActorsForMesh* Def = SettingsLocal->DefaultDebugActorsForPreview.FindByKey(Mesh);
+                                if (Def) { *Def = *Curr; }
+                                else { SettingsLocal->DefaultDebugActorsForPreview.Add(*Curr); }
+                                SettingsLocal->SaveConfig();
                             }
-                            SettingsLocal->SaveConfig();
+                        }))
+                    );
+
+                    MenuBuilder.AddMenuEntry(
+                        FText::FromString(TEXT("Reset To Defaults")),
+                        FText::FromString(TEXT("Reset current mesh mapping to defaults and apply")),
+                        FSlateIcon(),
+                        FUIAction(FExecuteAction::CreateLambda([]
+                        {
+                            // Resolve mesh
+                            FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+                            TArray<FAssetData> Selection; CBModule.Get().GetSelectedAssets(Selection);
+                            USkeletalMesh* Mesh = nullptr;
+                            for (const FAssetData& A : Selection)
+                            {
+                                if (USkeletalMesh* SM = Cast<USkeletalMesh>(A.GetAsset())) { Mesh = SM; break; }
+                            }
+                            if (!Mesh) Mesh = FDBSEditorPreviewDrawer::Get()->GetAnyActiveMesh();
+                            if (!Mesh) return;
+
+                            UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+                            const FDBSDebugActorsForMesh* Def = SettingsLocal->DefaultDebugActorsForPreview.FindByKey(Mesh);
+                            FDBSDebugActorsForMesh* Curr = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
+                            if (Def)
+                            {
+                                if (Curr) { *Curr = *Def; }
+                                else { SettingsLocal->CurrentDebugActorsForPreview.Add(*Def); }
+                            }
+                            else
+                            {
+                                if (Curr) { Curr->DebugActors.Reset(); Curr->Mesh = Mesh; }
+                                else { FDBSDebugActorsForMesh Tmp; Tmp.Mesh = Mesh; SettingsLocal->CurrentDebugActorsForPreview.Add(Tmp); }
+                            }
+
+                            // Apply with per-source filtering
+                            const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
+                            TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
+                            if (Mapping)
+                            {
+                                for (const FDBSDebugActor& A : Mapping->DebugActors)
+                                {
+                                    if (A.SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE) continue;
+                                    if (!A.bSpawnInPreview) continue;
+                                    FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = A.SourceName; Info.Actor = A.Actor; Info.bCustomSocketName = A.bCustomSocketName; Info.SocketName = A.SocketName; Infos.Add(Info);
+                                }
+                            }
+                            FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(Mesh, Infos);
                         }))
                     );
 

@@ -10,7 +10,7 @@
 class UDamageBehaviorsComponent;
 
 USTRUCT()
-struct FDBSInvokeDamageBehaviorDebugActor
+struct FDBSDebugActor
 {
 	GENERATED_BODY()
 
@@ -18,6 +18,8 @@ struct FDBSInvokeDamageBehaviorDebugActor
 	FString SourceName;
 	UPROPERTY(EditAnywhere)
 	TSoftClassPtr<AActor> Actor;
+	UPROPERTY(EditAnywhere)
+	bool bSpawnInPreview = true;
 	UPROPERTY(EditAnywhere, meta=(InlineEditConditionToggle))
 	bool bCustomSocketName = false;
 	UPROPERTY(EditAnywhere, meta=(EditCondition="bCustomSocketName"))
@@ -34,14 +36,14 @@ struct FDBSInvokeDamageBehaviorDebugActor
 };
 
 USTRUCT()
-struct FDBSInvokeDamageBehaviorDebugForMesh
+struct FDBSDebugActorsForMesh
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
 	TSoftObjectPtr<USkeletalMesh> Mesh;
 	UPROPERTY(EditAnywhere)
-	TArray<FDBSInvokeDamageBehaviorDebugActor> DebugActors;
+	TArray<FDBSDebugActor> DebugActors;
 
 	bool operator==(const USkeletalMesh* Mesh_In) const
 	{
@@ -59,7 +61,7 @@ struct FDBSInvokeDamageBehaviorDebugForMesh
 // public:
 // 	// TODO: ActorsBySourceName - RightHandActor, LeftHandActor
 // 	UPROPERTY(EditAnywhere, Category="SoftRefs")
-// 	TArray<FDBSInvokeDamageBehaviorDebugForMesh> DebugActors;
+// 	TArray<FDBSDebugActorsForMesh> DebugActors;
 // };
 
 USTRUCT()
@@ -125,12 +127,12 @@ public:
 
 private:
 	UPROPERTY()
-	TArray<FDBSInvokeDamageBehaviorDebugActor> FilledDebugActors;
+	TArray<FDBSDebugActor> FilledDebugActors;
 
 	UPROPERTY()
 	TMap<FString, FDBSDebugHitRegistratorDescription> HitRegistratorsDescription = {};
 
-	FDBSInvokeDamageBehaviorDebugActor GetFilledDebugActor(FString SourceName);
+	FDBSDebugActor GetFilledDebugActor(FString SourceName);
 
 	void DrawCapsules(UWorld* WorldContextObject, USkeletalMeshComponent* MeshComp);
 

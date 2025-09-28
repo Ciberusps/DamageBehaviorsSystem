@@ -11,6 +11,8 @@ class USkeletalMeshComponent;
 class USkeletalMesh;
 struct FDBSPreviewDebugActorSpawnInfo;
 struct FDBSPreviewDebugPayload;
+class UAssetEditorSubsystem;
+class UObject;
 
 class FDBSEditorPreviewDrawer : public FTickableGameObject
 {
@@ -29,6 +31,8 @@ public:
 	void ApplySpawnForMesh(USkeletalMesh* Mesh, const TArray<FDBSPreviewDebugActorSpawnInfo>& SpawnInfos);
 	USkeletalMeshComponent* FindPreviewMeshCompFor(USkeletalMesh* Mesh) const;
 	USkeletalMesh* GetAnyActiveMesh() const;
+	void GetActivePreviewMeshes(TArray<USkeletalMesh*>& OutMeshes) const;
+	USkeletalMesh* GetFocusedEditorPreviewMesh() const;
 
 private:
 	void OnPreviewDebug(const FDBSPreviewDebugPayload& Payload);

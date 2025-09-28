@@ -10,7 +10,7 @@
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 
-void FDBSInvokeDamageBehaviorDebugActor::FillData()
+void FDBSDebugActor::FillData()
 {
 	// 1) Load the class (Synchronous; in async you'd use StreamableManager)
 	UClass* CharClass = Actor.LoadSynchronous();
@@ -190,7 +190,7 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
     if (MeshComp->GetWorld()->IsPreviewWorld())
 	{
 		const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
-		const FDBSInvokeDamageBehaviorDebugForMesh* InvokeDamageBehaviorDebugForMeshSearch = DamageBehaviorsSystemSettings->DebugActors.FindByKey(MeshComp->GetSkeletalMeshAsset());
+		const FDBSDebugActorsForMesh* InvokeDamageBehaviorDebugForMeshSearch = DamageBehaviorsSystemSettings->DefaultDebugActorsForPreview.FindByKey(MeshComp->GetSkeletalMeshAsset());
 		
 		// If no specific debug actors found for this mesh, use the fallback mesh
 		if (!InvokeDamageBehaviorDebugForMeshSearch)
@@ -199,7 +199,7 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 		}
 		else
 		{
-			const FDBSInvokeDamageBehaviorDebugForMesh& InvokeDamageBehaviorDebugForMesh = *InvokeDamageBehaviorDebugForMeshSearch;
+			const FDBSDebugActorsForMesh& InvokeDamageBehaviorDebugForMesh = *InvokeDamageBehaviorDebugForMeshSearch;
 			FilledDebugActors = InvokeDamageBehaviorDebugForMesh.DebugActors;
 		}
 		
@@ -207,14 +207,14 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 		
 		TArray<FString> DamageBehaviorsSourcesList = GetDamageBehaviorSourcesList();
 
-		for (FDBSInvokeDamageBehaviorDebugActor& DebugActor : FilledDebugActors)
+		for (FDBSDebugActor& DebugActor : FilledDebugActors)
 		{
 			DebugActor.FillData();
 		}
 		
 		for (FString DamageBehaviorsSource : DamageBehaviorsSourcesList)
 		{
-			FDBSInvokeDamageBehaviorDebugActor DebugActor = GetFilledDebugActor(DamageBehaviorsSource);
+			FDBSDebugActor DebugActor = GetFilledDebugActor(DamageBehaviorsSource);
 			if (!DebugActor.IsValid()) continue;
 
 			UDamageBehavior* DamageBehavior = DebugActor.DBC->GetDamageBehavior(Name);
@@ -222,7 +222,7 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 
 			for (FDBSHitRegistratorsToActivateSource HitRegistratorsToActivateBySource : DamageBehavior->HitRegistratorsToActivateBySource)
 			{
-				FDBSInvokeDamageBehaviorDebugActor DebugActorForHitRegistrator = GetFilledDebugActor(HitRegistratorsToActivateBySource.SourceName);
+				FDBSDebugActor DebugActorForHitRegistrator = GetFilledDebugActor(HitRegistratorsToActivateBySource.SourceName);
 				if (!DebugActorForHitRegistrator.Actor) continue;
 
 				for (FString HitRegistratorsName : HitRegistratorsToActivateBySource.HitRegistratorsNames)
@@ -265,7 +265,7 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
             PayloadData.HitRegistratorsDescription = HitRegistratorsDescription;
 
             PayloadData.DebugActorsToSpawn.Reset();
-            for (const FDBSInvokeDamageBehaviorDebugActor& DA : FilledDebugActors)
+            for (const FDBSDebugActor& DA : FilledDebugActors)
             {
                 FDBSPreviewDebugActorSpawnInfo Info;
                 Info.SourceName = DA.SourceName;
@@ -345,9 +345,9 @@ TArray<FString> UANS_InvokeDamageBehavior::GetDamageBehaviorSourcesList() const
 	return Result;
 }
 
-FDBSInvokeDamageBehaviorDebugActor UANS_InvokeDamageBehavior::GetFilledDebugActor(FString SourceName)
+FDBSDebugActor UANS_InvokeDamageBehavior::GetFilledDebugActor(FString SourceName)
 {
-	FDBSInvokeDamageBehaviorDebugActor* DebugActorSearch = FilledDebugActors.FindByPredicate([&](const FDBSInvokeDamageBehaviorDebugActor& DebugActor)
+	FDBSDebugActor* DebugActorSearch = FilledDebugActors.FindByPredicate([&](const FDBSDebugActor& DebugActor)
 		{
 			return DebugActor.SourceName == SourceName;
 		});
@@ -365,7 +365,7 @@ FDBSInvokeDamageBehaviorDebugActor UANS_InvokeDamageBehavior::GetFilledDebugActo
 	// fallback to the first configured debug actor (e.g., a weapon like WP_M_Sword)
 	if (SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE && FilledDebugActors.Num() > 0)
 	{
-		FDBSInvokeDamageBehaviorDebugActor& First = FilledDebugActors[0];
+		FDBSDebugActor& First = FilledDebugActors[0];
 		if (!First.IsValid())
 		{
 			First.FillData();
@@ -380,7 +380,7 @@ void UANS_InvokeDamageBehavior::DrawCapsules(UWorld* WorldContextObject, USkelet
 {
 	TMap<FString, FDBSDebugHitRegistratorDescription> LocalHitRegistratorsDescription = HitRegistratorsDescription;
 	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
-	const bool bUsingFallback = !DamageBehaviorsSystemSettings->DebugActors.FindByKey(MeshComp->GetSkeletalMeshAsset());
+	const bool bUsingFallback = !DamageBehaviorsSystemSettings->DefaultDebugActorsForPreview.FindByKey(MeshComp->GetSkeletalMeshAsset());
 
 	for (TPair<FString, FDBSDebugHitRegistratorDescription> RegistratorsDescription : LocalHitRegistratorsDescription)
 	{

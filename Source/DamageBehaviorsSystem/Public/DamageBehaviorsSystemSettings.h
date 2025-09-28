@@ -25,13 +25,25 @@ public:
 
 	// TODO: ActorsBySourceName - RightHandActor, LeftHandActor
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings")
-	TArray<FDBSInvokeDamageBehaviorDebugForMesh> DebugActors = {};
+	TArray<FDBSDebugActorsForMesh> DefaultDebugActorsForPreview = {};
+
+	// Transient working set for editor preview; initialized from defaults when needed
+	UPROPERTY(EditAnywhere, Transient, Category="DamageBehaviorsSystemSettings")
+	TArray<FDBSDebugActorsForMesh> CurrentDebugActorsForPreview;
+
+	// UI state: selected mesh for DBS Debug when multiple previews are open
+	UPROPERTY(EditAnywhere, Transient, Category="DamageBehaviorsSystemSettings")
+	TSoftObjectPtr<USkeletalMesh> ForcePreviewMeshForDebugUI;
+
+	// UI state: current auto-selected mesh (most recent active). Used when ForcePreviewMeshForDebugUI is null
+	UPROPERTY(EditAnywhere, Transient, Category="DamageBehaviorsSystemSettings")
+	TSoftObjectPtr<USkeletalMesh> CurrentPreviewMeshForDebugUI;
 
 	// Can't work we always need blueprint with DamageBehaviors to take DamageBehaviors for ThisActor
 	// Works only when enemy don't have weapons and we need to display capsules from default weapons
 	// Fallback debug mesh used when no specific debug actors are found for a mesh
 	UPROPERTY(config, EditAnywhere, Category="DamageBehaviorsSystemSettings", meta=(DisplayName="Fallback Debug Mesh"))
-	FDBSInvokeDamageBehaviorDebugForMesh FallbackDebugMesh;
+	FDBSDebugActorsForMesh FallbackDebugMesh;
 
     // Class filter for selecting DebugActor classes in all pickers
     UPROPERTY(config, EditAnywhere, Category="Debug")
@@ -45,9 +57,6 @@ public:
     UPROPERTY(config, EditAnywhere, Category="Debug")
     bool bPreserveDrawOnPause = true;
 
-    // If true, spawn selected DebugActors in the preview world
-    UPROPERTY(config, EditAnywhere, Category="Debug")
-    bool bSpawnDebugActorsInPreview = false;
 
     // If true and a socket is provided on DebugActor, attach actor to that socket
     UPROPERTY(config, EditAnywhere, Category="Debug")

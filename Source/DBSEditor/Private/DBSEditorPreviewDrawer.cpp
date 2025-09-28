@@ -115,24 +115,36 @@ FDBSEditorPreviewDrawer* FDBSEditorPreviewDrawer::Get()
 
 USkeletalMeshComponent* FDBSEditorPreviewDrawer::FindPreviewMeshCompFor(USkeletalMesh* Mesh) const
 {
-	for (const auto& Pair : LastDescriptions)
-	{
-		if (USkeletalMeshComponent* Comp = Pair.Key.Get())
-		{
-			if (Comp->GetSkeletalMeshAsset() == Mesh)
-			{
-				return Comp;
-			}
-		}
-	}
-	// Fallback: scan all preview-world skeletal mesh components
+	if (!Mesh) return nullptr;
+
+	USkeletalMeshComponent* BestComp = nullptr;
+	uint32 BestId = 0;
 	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 	{
 		USkeletalMeshComponent* Comp = *It;
 		if (!Comp || !Comp->GetWorld() || !Comp->GetWorld()->IsPreviewWorld()) continue;
-		if (Comp->GetSkeletalMeshAsset() == Mesh) return Comp;
+		if (Comp->GetSkeletalMeshAsset() != Mesh) continue;
+		const uint32 Id = Comp->GetUniqueID();
+		if (!BestComp || Id > BestId)
+		{
+			BestComp = Comp;
+			BestId = Id;
+		}
 	}
-	return nullptr;
+	if (BestComp) return BestComp;
+	// Fallback: return newest preview component if mesh not yet applied
+	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+	{
+		USkeletalMeshComponent* Comp = *It;
+		if (!Comp || !Comp->GetWorld() || !Comp->GetWorld()->IsPreviewWorld()) continue;
+		const uint32 Id = Comp->GetUniqueID();
+		if (!BestComp || Id > BestId)
+		{
+			BestComp = Comp;
+			BestId = Id;
+		}
+	}
+	return BestComp;
 }
 
 USkeletalMesh* FDBSEditorPreviewDrawer::GetAnyActiveMesh() const
@@ -294,6 +306,13 @@ void FDBSEditorPreviewDrawer::ApplySpawnForMesh(USkeletalMesh* Mesh, const TArra
     USkeletalMeshComponent* Comp = this->FindPreviewMeshCompFor(Mesh);
 	if (!Comp) return;
 
+	ApplySpawnForMeshWithComponent(Mesh, Comp, SpawnInfos);
+}
+
+void FDBSEditorPreviewDrawer::ApplySpawnForMeshWithComponent(USkeletalMesh* Mesh, USkeletalMeshComponent* Comp, const TArray<FDBSPreviewDebugActorSpawnInfo>& SpawnInfos)
+{
+	if (!Mesh || !Comp) return;
+
 	UDamageBehaviorsSystemSettings* Settings = GetMutableDefault<UDamageBehaviorsSystemSettings>();
     // No global spawn gate; respect per-source flags via caller
 
@@ -332,7 +351,14 @@ void FDBSEditorPreviewDrawer::ApplySpawnForMesh(USkeletalMesh* Mesh, const TArra
 		const FName Socket = Info.bCustomSocketName ? Info.SocketName : NAME_None;
 		if (!IsValid(Comp) || Comp->IsBeingDestroyed()) { continue; }
 		if (!IsValid(Existing) || Existing->IsActorBeingDestroyed()) { continue; }
-		Existing->AttachToComponent(Comp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
+
+		FName AttachSocket = Socket;
+		if (AttachSocket != NAME_None && !Comp->DoesSocketExist(AttachSocket))
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("DBS: Socket '%s' not found on mesh '%s'. Attaching to component root."), *AttachSocket.ToString(), *GetNameSafe(Comp->GetSkeletalMeshAsset()));
+			AttachSocket = NAME_None;
+		}
+		Existing->AttachToComponent(Comp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, AttachSocket);
 
 		// Apply HitRegistrator shapes visibility on initial spawn/respawn
 		{
@@ -341,7 +367,6 @@ void FDBSEditorPreviewDrawer::ApplySpawnForMesh(USkeletalMesh* Mesh, const TArra
 			for (UCapsuleHitRegistrator* Reg : Registrators)
 			{
 				if (!Reg) continue;
-				// Prefer component visibility toggle for immediate effect
 				Reg->SetVisibility(!bHide, true);
 				Reg->UpdateComponentToWorld();
 			}
@@ -396,6 +421,37 @@ void FDBSEditorPreviewDrawer::RemoveSpawnForMeshSource(USkeletalMesh* Mesh, cons
         }
         (*PerSourcePtr).Remove(SourceName);
     }
+}
+
+void FDBSEditorPreviewDrawer::RemoveSpawnForComponentSource(USkeletalMeshComponent* Comp, const FString& SourceName)
+{
+    if (!Comp) return;
+    TMap<FString, TWeakObjectPtr<AActor>>* PerSourcePtr = SpawnedActors.Find(Comp);
+    if (!PerSourcePtr) return;
+    TWeakObjectPtr<AActor>& ActorPtr = (*PerSourcePtr).FindOrAdd(SourceName);
+    if (ActorPtr.IsValid())
+    {
+        if (AActor* Existing = ActorPtr.Get())
+        {
+            Existing->Destroy();
+        }
+        (*PerSourcePtr).Remove(SourceName);
+    }
+}
+
+void FDBSEditorPreviewDrawer::RemoveAllForComponent(USkeletalMeshComponent* Comp)
+{
+    if (!Comp) return;
+    TMap<FString, TWeakObjectPtr<AActor>>* PerSourcePtr = SpawnedActors.Find(Comp);
+    if (!PerSourcePtr) return;
+    for (auto& Pair : *PerSourcePtr)
+    {
+        if (AActor* Existing = Pair.Value.Get())
+        {
+            Existing->Destroy();
+        }
+    }
+    SpawnedActors.Remove(Comp);
 }
 
 void FDBSEditorPreviewDrawer::ClearSpawnForMeshComp(USkeletalMeshComponent* Comp)

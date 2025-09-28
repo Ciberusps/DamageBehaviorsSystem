@@ -31,12 +31,15 @@ public:
 public:
 	static FDBSEditorPreviewDrawer* Get();
 	void ApplySpawnForMesh(USkeletalMesh* Mesh, const TArray<FDBSPreviewDebugActorSpawnInfo>& SpawnInfos);
+	void ApplySpawnForMeshWithComponent(USkeletalMesh* Mesh, USkeletalMeshComponent* Comp, const TArray<FDBSPreviewDebugActorSpawnInfo>& SpawnInfos);
 	USkeletalMeshComponent* FindPreviewMeshCompFor(USkeletalMesh* Mesh) const;
 	USkeletalMesh* GetAnyActiveMesh() const;
 	void GetActivePreviewMeshes(TArray<USkeletalMesh*>& OutMeshes) const;
 	USkeletalMesh* GetFocusedEditorPreviewMesh() const;
 	void RemoveSpawnForMeshSource(USkeletalMesh* Mesh, const FString& SourceName);
 	void UpdateHitRegistratorShapesVisibilityForAll();
+	void RemoveSpawnForComponentSource(USkeletalMeshComponent* Comp, const FString& SourceName);
+	void RemoveAllForComponent(USkeletalMeshComponent* Comp);
 
 private:
 	void OnPreviewDebug(const FDBSPreviewDebugPayload& Payload);

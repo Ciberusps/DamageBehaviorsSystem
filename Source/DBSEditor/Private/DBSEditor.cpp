@@ -37,6 +37,11 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/Skeleton.h"
 #include "Editor/EditorEngine.h"
+#include "TimerManager.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "IPersonaToolkit.h"
+#include "IAnimationEditor.h"
+#include "Animation/DebugSkelMeshComponent.h"
 
 static const FName UHLDebugSystemEditorTabName("DBSEditor");
 
@@ -82,8 +87,10 @@ void FDBSEditorModule::StartupModule()
 		if (UAssetEditorSubsystem* AES = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
 		{
 			AES->OnAssetEditorOpened().AddRaw(this, &FDBSEditorModule::HandleAssetEditorOpened);
+			AES->OnAssetOpenedInEditor().AddRaw(this, &FDBSEditorModule::HandleAssetOpendInEditor);
 			AES->OnAssetClosedInEditor().AddRaw(this, &FDBSEditorModule::HandleAssetEditorClosed);
 		}
+		// Also catch asset switches within an already open editor
 	}
 
 	// Register a toolbar extender in AnimSequence/Persona/SkeletalMesh editors via ToolMenus
@@ -567,6 +574,7 @@ void FDBSEditorModule::ShutdownModule()
 		if (UAssetEditorSubsystem* AES = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
 		{
 			AES->OnAssetEditorOpened().RemoveAll(this);
+			AES->OnAssetOpenedInEditor().RemoveAll(this);
 			AES->OnAssetClosedInEditor().RemoveAll(this);
 		}
 	}
@@ -578,6 +586,28 @@ void FDBSEditorModule::HandleObjectPropertyChanged(UObject* Object, FPropertyCha
 	UBlueprint* Blueprint = Cast<UBlueprint>(Object);
 	if (!Blueprint || !Blueprint->GeneratedClass)
 	{
+		// Also react to Skeleton preview mesh changes while an animation editor is open
+		if (USkeleton* Skel = Cast<USkeleton>(Object))
+		{
+			// Heuristic: respond to any property change by respawning for current preview mesh
+			if (USkeletalMesh* Mesh = Skel->GetPreviewMesh())
+			{
+				// Clear current sources for this mesh, then spawn fresh
+				if (FDBSEditorPreviewDrawer* Drawer = FDBSEditorPreviewDrawer::Get())
+				{
+					UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+					const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
+					if (Mapping)
+					{
+						for (const FDBSDebugActor& A : Mapping->DebugActors)
+						{
+							Drawer->RemoveSpawnForMeshSource(Mesh, A.SourceName);
+						}
+					}
+				}
+				SpawnDebugActorsForMesh(Mesh);
+			}
+		}
 		return;
 	}
 
@@ -630,22 +660,19 @@ void FDBSEditorModule::HandleObjectPropertyChanged(UObject* Object, FPropertyCha
 
 void FDBSEditorModule::HandleAssetEditorOpened(UObject* Asset)
 {
-	UAnimMontage* Montage = Cast<UAnimMontage>(Asset);
-	if (!Montage)
+	USkeletalMesh* Mesh = nullptr;
+	if (const UAnimMontage* Montage = Cast<UAnimMontage>(Asset))
 	{
-		if (UAnimSequenceBase* Seq = Cast<UAnimSequenceBase>(Asset))
-		{
-			if (USkeleton* Skel = Seq->GetSkeleton())
-			{
-				SpawnDebugActorsForMesh(Skel->GetPreviewMesh());
-			}
-		}
-		return;
+		if (USkeleton* Skel = Montage->GetSkeleton()) Mesh = Skel->GetPreviewMesh();
 	}
-	if (USkeleton* Skel = Montage->GetSkeleton())
+	else if (const UAnimSequenceBase* Seq = Cast<UAnimSequenceBase>(Asset))
 	{
-		SpawnDebugActorsForMesh(Skel->GetPreviewMesh());
+		if (USkeleton* Skel = Seq->GetSkeleton()) Mesh = Skel->GetPreviewMesh();
 	}
+	if (!Mesh) return;
+
+	ClearDebugActorsForMesh(Mesh);
+	RespawnDebugActorsForMeshDeferred(Mesh);
 }
 
 void FDBSEditorModule::HandleAssetEditorClosed(UObject* Asset, IAssetEditorInstance* AEI)
@@ -687,11 +714,103 @@ void FDBSEditorModule::HandleAssetEditorClosed(UObject* Asset, IAssetEditorInsta
 	}
 }
 
-void FDBSEditorModule::SpawnDebugActorsForMesh(USkeletalMesh* Mesh)
+void FDBSEditorModule::HandleAssetOpendInEditor(UObject* Asset, IAssetEditorInstance* AEI)
+{
+	USkeletalMeshComponent* PreferredComp = nullptr;
+	USkeletalMesh* Mesh = nullptr;
+	IAnimationEditor* AnimEditor = nullptr;
+	if (AEI && AEI->GetEditorName() == TEXT("AnimationEditor"))
+	{
+		AnimEditor = static_cast<IAnimationEditor*>(AEI);
+	}
+	if (AnimEditor)
+	{
+		TSharedRef<IPersonaToolkit> Persona = AnimEditor->GetPersonaToolkit();
+		UDebugSkelMeshComponent* DebugComp = Persona->GetPreviewMeshComponent();
+		PreferredComp = DebugComp;
+		Mesh = DebugComp ? DebugComp->GetSkeletalMeshAsset() : Persona->GetPreviewMesh();
+	}
+	if (!Mesh)
+	{
+		if (const UAnimMontage* Montage = Cast<UAnimMontage>(Asset))
+		{
+			if (USkeleton* Skel = Montage->GetSkeleton()) Mesh = Skel->GetPreviewMesh();
+		}
+		else if (const UAnimSequenceBase* Seq = Cast<UAnimSequenceBase>(Asset))
+		{
+			if (USkeleton* Skel = Seq->GetSkeleton()) Mesh = Skel->GetPreviewMesh();
+		}
+	}
+	if (!Mesh)
+	{
+		RespawnForAssetDeferred(Asset);
+		return;
+	}
+
+	ClearDebugActorsForMesh(Mesh);
+	if (PreferredComp)
+	{
+		FDBSEditorPreviewDrawer::Get()->RemoveAllForComponent(PreferredComp);
+		TArray<FDBSPreviewDebugActorSpawnInfo> Infos = CollectSpawnInfosForMesh(Mesh);
+		FDBSEditorPreviewDrawer::Get()->ApplySpawnForMeshWithComponent(Mesh, PreferredComp, Infos);
+		if (UWorld* World = PreferredComp->GetWorld())
+		{
+			USkeletalMesh* InitialMesh = Mesh;
+			TWeakObjectPtr<USkeletalMeshComponent> WeakComp = PreferredComp;
+			FTimerHandle Handle;
+			World->GetTimerManager().SetTimer(
+				Handle,
+				FTimerDelegate::CreateLambda([
+					this,
+					WeakComp,
+					InitialMesh
+				]()
+				{
+					USkeletalMeshComponent* CompLocal = WeakComp.Get();
+					if (!CompLocal) return;
+					USkeletalMesh* CurrentMesh = CompLocal->GetSkeletalMeshAsset();
+					if (!CurrentMesh)
+					{
+						CurrentMesh = InitialMesh;
+					}
+					TArray<FDBSPreviewDebugActorSpawnInfo> RetryInfos = CollectSpawnInfosForMesh(CurrentMesh);
+					FDBSEditorPreviewDrawer::Get()->RemoveAllForComponent(CompLocal);
+					FDBSEditorPreviewDrawer::Get()->ApplySpawnForMeshWithComponent(CurrentMesh, CompLocal, RetryInfos);
+				}),
+				0.1f,
+				false
+			);
+		}
+	}
+	else
+	{
+		RespawnDebugActorsForMeshDeferred(Mesh);
+	}
+}
+
+void FDBSEditorModule::ClearDebugActorsForMesh(USkeletalMesh* Mesh)
 {
 	if (!Mesh) return;
+	if (FDBSEditorPreviewDrawer* Drawer = FDBSEditorPreviewDrawer::Get())
+	{
+		UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+		const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
+		if (Mapping)
+		{
+			for (const FDBSDebugActor& A : Mapping->DebugActors)
+			{
+				Drawer->RemoveSpawnForMeshSource(Mesh, A.SourceName);
+			}
+		}
+	}
+}
+
+static void GatherSpawnInfosForMesh(USkeletalMesh* Mesh, TArray<FDBSPreviewDebugActorSpawnInfo>& OutInfos)
+{
+	OutInfos.Reset();
+	if (!Mesh) return;
 	UDamageBehaviorsSystemSettings* S = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-	// Ensure current is initialized from defaults
+	if (!S) return;
 	if (!S->CurrentDebugActorsForPreview.FindByKey(Mesh))
 	{
 		if (const FDBSDebugActorsForMesh* Def = S->DefaultDebugActorsForPreview.FindByKey(Mesh))
@@ -703,20 +822,155 @@ void FDBSEditorModule::SpawnDebugActorsForMesh(USkeletalMesh* Mesh)
 			FDBSDebugActorsForMesh Tmp; Tmp.Mesh = Mesh; S->CurrentDebugActorsForPreview.Add(Tmp);
 		}
 	}
-	const FDBSDebugActorsForMesh* Mapping = S->CurrentDebugActorsForPreview.FindByKey(Mesh);
-	TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
-	if (Mapping)
+	if (const FDBSDebugActorsForMesh* Mapping = S->CurrentDebugActorsForPreview.FindByKey(Mesh))
 	{
 		for (const FDBSDebugActor& A : Mapping->DebugActors)
 		{
 			if (A.SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE) continue;
 			if (!A.bSpawnInPreview) continue;
-			FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = A.SourceName; Info.Actor = A.Actor; Info.bCustomSocketName = A.bCustomSocketName; Info.SocketName = A.SocketName; Infos.Add(Info);
+			FDBSPreviewDebugActorSpawnInfo Info;
+			Info.SourceName = A.SourceName;
+			Info.Actor = A.Actor;
+			Info.bCustomSocketName = A.bCustomSocketName;
+			Info.SocketName = A.SocketName;
+			OutInfos.Add(Info);
 		}
 	}
-	if (Infos.Num() > 0)
+}
+
+void FDBSEditorModule::SpawnDebugActorsForMesh(USkeletalMesh* Mesh, USkeletalMeshComponent* PreferredComp)
+{
+	TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
+	GatherSpawnInfosForMesh(Mesh, Infos);
+	if (Infos.Num() == 0) return;
+	if (PreferredComp)
 	{
-		FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(Mesh, Infos);
+		UWorld* World = PreferredComp->GetWorld();
+		if (World && World->IsPreviewWorld())
+		{
+			FDBSEditorPreviewDrawer::Get()->ApplySpawnForMeshWithComponent(Mesh, PreferredComp, Infos);
+			return;
+		}
+	}
+	FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(Mesh, Infos);
+}
+
+TArray<FDBSPreviewDebugActorSpawnInfo> FDBSEditorModule::CollectSpawnInfosForMesh(USkeletalMesh* Mesh) const
+{
+	TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
+	GatherSpawnInfosForMesh(Mesh, Infos);
+	return Infos;
+}
+
+void FDBSEditorModule::RespawnDebugActorsForMeshDeferred(USkeletalMesh* Mesh)
+{
+	if (!Mesh) return;
+	USkeletalMeshComponent* Comp = FDBSEditorPreviewDrawer::Get()->FindPreviewMeshCompFor(Mesh);
+	if (Comp)
+	{
+		FDBSEditorPreviewDrawer::Get()->RemoveAllForComponent(Comp);
+		TArray<FDBSPreviewDebugActorSpawnInfo> Infos = CollectSpawnInfosForMesh(Mesh);
+		FDBSEditorPreviewDrawer::Get()->ApplySpawnForMeshWithComponent(Mesh, Comp, Infos);
+		if (UWorld* World = Comp->GetWorld())
+		{
+			USkeletalMesh* InitialMesh = Mesh;
+			TWeakObjectPtr<USkeletalMeshComponent> WeakComp = Comp;
+			FTimerHandle Handle;
+			World->GetTimerManager().SetTimer(
+				Handle,
+				FTimerDelegate::CreateLambda([
+					this,
+					WeakComp,
+					InitialMesh
+				]()
+				{
+					USkeletalMeshComponent* CompLocal = WeakComp.Get();
+					if (!CompLocal) return;
+					USkeletalMesh* CurrentMesh = CompLocal->GetSkeletalMeshAsset();
+					if (!CurrentMesh)
+					{
+						CurrentMesh = InitialMesh;
+					}
+					TArray<FDBSPreviewDebugActorSpawnInfo> RetryInfos = CollectSpawnInfosForMesh(CurrentMesh);
+					FDBSEditorPreviewDrawer::Get()->RemoveAllForComponent(CompLocal);
+					FDBSEditorPreviewDrawer::Get()->ApplySpawnForMeshWithComponent(CurrentMesh, CompLocal, RetryInfos);
+				}),
+				0.1f,
+				false
+			);
+		}
+		PendingRespawnAttempts.Remove(Mesh);
+		return;
+	}
+	int32& Attempts = PendingRespawnAttempts.FindOrAdd(Mesh);
+	if (Attempts >= 60)
+	{
+		PendingRespawnAttempts.Remove(Mesh);
+		return;
+	}
+	Attempts++;
+	if (GEditor && GEditor->GetEditorWorldContext().World())
+	{
+		FTimerDelegate Dlg; Dlg.BindLambda([this, Mesh]() { RespawnDebugActorsForMeshDeferred(Mesh); });
+		GEditor->GetEditorWorldContext().World()->GetTimerManager().SetTimerForNextTick(Dlg);
+	}
+}
+
+void FDBSEditorModule::RespawnForAssetDeferred(UObject* Asset)
+{
+	if (!Asset) return;
+	USkeletalMesh* Mesh = nullptr;
+	if (const UAnimMontage* Montage = Cast<UAnimMontage>(Asset))
+	{
+		if (USkeleton* Skel = Montage->GetSkeleton()) Mesh = Skel->GetPreviewMesh();
+	}
+	else if (const UAnimSequenceBase* Seq = Cast<UAnimSequenceBase>(Asset))
+	{
+		if (USkeleton* Skel = Seq->GetSkeleton()) Mesh = Skel->GetPreviewMesh();
+	}
+	// Fallbacks when skeleton has no preview mesh set yet
+	if (!Mesh)
+	{
+		USkeletalMesh* FocusedMesh = FDBSEditorPreviewDrawer::Get()->GetFocusedEditorPreviewMesh();
+		if (FocusedMesh) { Mesh = FocusedMesh; }
+		else
+		{
+			USkeletalMesh* AnyActive = nullptr;
+			TArray<USkeletalMesh*> ActiveMeshes; FDBSEditorPreviewDrawer::Get()->GetActivePreviewMeshes(ActiveMeshes);
+			if (ActiveMeshes.Num() > 0) { AnyActive = ActiveMeshes.Last(); }
+			if (AnyActive) { Mesh = AnyActive; }
+		}
+	}
+	if (Mesh)
+	{
+		// Same flow as on open: clear then deferred respawn
+		if (FDBSEditorPreviewDrawer* Drawer = FDBSEditorPreviewDrawer::Get())
+		{
+			UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+			const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
+			if (Mapping)
+			{
+				for (const FDBSDebugActor& A : Mapping->DebugActors)
+				{
+					Drawer->RemoveSpawnForMeshSource(Mesh, A.SourceName);
+				}
+			}
+		}
+		RespawnDebugActorsForMeshDeferred(Mesh);
+		PendingAssetOpenAttempts.Remove(Asset);
+		return;
+	}
+	int32& Attempts = PendingAssetOpenAttempts.FindOrAdd(Asset);
+	if (Attempts >= 60)
+	{
+		PendingAssetOpenAttempts.Remove(Asset);
+		return;
+	}
+	Attempts++;
+	if (GEditor && GEditor->GetEditorWorldContext().World())
+	{
+		FTimerDelegate Dlg; Dlg.BindLambda([this, Asset]() { RespawnForAssetDeferred(Asset); });
+		GEditor->GetEditorWorldContext().World()->GetTimerManager().SetTimerForNextTick(Dlg);
 	}
 }
 

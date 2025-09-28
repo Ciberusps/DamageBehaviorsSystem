@@ -116,7 +116,7 @@ void FDBSEditorModule::StartupModule()
                     );
 
                     MenuBuilder.AddMenuEntry(
-                        FText::FromString("Preserve Draw On Pause"),
+                        FText::FromString("Preserve Last Draw"),
                         FText::FromString("Keep last draw when montage is paused"),
                         FSlateIcon(),
                         FUIAction(
@@ -403,29 +403,36 @@ void FDBSEditorModule::StartupModule()
                     // Removed explicit Apply; changes are now applied immediately
                     
                     MenuBuilder.AddMenuEntry(
-                        FText::FromString(TEXT("Save To Defaults")),
+                        FText::FromString(TEXT("Save as Defaults")),
                         FText::FromString(TEXT("Copy current mesh mapping to defaults")),
                         FSlateIcon(),
                         FUIAction(FExecuteAction::CreateLambda([]
                         {
-                            FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-                            TArray<FAssetData> Selection; CBModule.Get().GetSelectedAssets(Selection);
-                            USkeletalMesh* Mesh = nullptr;
-                            for (const FAssetData& A : Selection)
+                            UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+                            // Resolve mesh robustly: forced, current auto (focused), CB selection, any active
+                            USkeletalMesh* Mesh = SettingsLocal->ForcePreviewMeshForDebugUI.IsValid() ? SettingsLocal->ForcePreviewMeshForDebugUI.Get() : (SettingsLocal->CurrentPreviewMeshForDebugUI.IsValid() ? SettingsLocal->CurrentPreviewMeshForDebugUI.Get() : nullptr);
+                            if (!Mesh) { Mesh = FDBSEditorPreviewDrawer::Get()->GetFocusedEditorPreviewMesh(); }
+                            if (!Mesh)
                             {
-                                if (USkeletalMesh* SM = Cast<USkeletalMesh>(A.GetAsset())) { Mesh = SM; break; }
+                                FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+                                TArray<FAssetData> Selection; CBModule.Get().GetSelectedAssets(Selection);
+                                for (const FAssetData& A : Selection)
+                                {
+                                    if (USkeletalMesh* SM = Cast<USkeletalMesh>(A.GetAsset())) { Mesh = SM; break; }
+                                }
                             }
                             if (!Mesh) Mesh = FDBSEditorPreviewDrawer::Get()->GetAnyActiveMesh();
                             if (!Mesh) return;
-                            UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-                            const FDBSDebugActorsForMesh* Curr = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
-                            if (Curr)
-                            {
-                                FDBSDebugActorsForMesh* Def = SettingsLocal->DefaultDebugActorsForPreview.FindByKey(Mesh);
-                                if (Def) { *Def = *Curr; }
-                                else { SettingsLocal->DefaultDebugActorsForPreview.Add(*Curr); }
-                                SettingsLocal->SaveConfig();
-                            }
+
+                            const FDBSDebugActorsForMesh* CurrPtr = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
+                            if (!CurrPtr) return;
+                            FDBSDebugActorsForMesh Curr = *CurrPtr; // copy to ensure Mesh is set
+                            Curr.Mesh = Mesh;
+
+                            FDBSDebugActorsForMesh* Def = SettingsLocal->DefaultDebugActorsForPreview.FindByKey(Mesh);
+                            if (Def) { *Def = Curr; }
+                            else { SettingsLocal->DefaultDebugActorsForPreview.Add(Curr); }
+                            SettingsLocal->SaveConfig();
                         }))
                     );
 

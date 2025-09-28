@@ -45,93 +45,7 @@ void FDBSEditorPreviewDrawer::OnPreviewDebug(const FDBSPreviewDebugPayload& Payl
 		bActiveForMesh.Add(Payload.MeshComp, true);
 		LastDescriptions.Add(Payload.MeshComp, Payload.HitRegistratorsDescription);
 
-        {
-            UWorld* World = Payload.MeshComp->GetWorld();
-            if (World && World->IsPreviewWorld())
-            {
-                USkeletalMesh* Mesh = Payload.MeshComp->GetSkeletalMeshAsset();
-                UDamageBehaviorsSystemSettings* S = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-                // Lazy-init current from defaults if missing
-                if (Mesh && !S->CurrentDebugActorsForPreview.FindByKey(Mesh))
-                {
-                    const FDBSDebugActorsForMesh* Def = S->DefaultDebugActorsForPreview.FindByKey(Mesh);
-                    FDBSDebugActorsForMesh* Curr = nullptr;
-                    if (Def)
-                    {
-                        const int32 Idx = S->CurrentDebugActorsForPreview.Add(*Def);
-                        Curr = &S->CurrentDebugActorsForPreview[Idx];
-                    }
-                    else
-                    {
-                        const int32 Idx = S->CurrentDebugActorsForPreview.AddDefaulted();
-                        Curr = &S->CurrentDebugActorsForPreview[Idx];
-                        Curr->Mesh = Mesh;
-                    }
-                }
-                const FDBSDebugActorsForMesh* Mapping = Mesh ? S->CurrentDebugActorsForPreview.FindByKey(Mesh) : nullptr;
-
-                TMap<FString, TWeakObjectPtr<AActor>>& PerSource = SpawnedActors.FindOrAdd(Payload.MeshComp);
-                for (const FDBSPreviewDebugActorSpawnInfo& Info : Payload.DebugActorsToSpawn)
-                {
-                    if (Info.SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE) continue; // ThisActor never spawns
-
-                    // Respect per-source SpawnInPreview, default to true if not found
-                    bool bShouldSpawn = true;
-                    if (Mapping)
-                    {
-                        const FDBSDebugActor* E = Mapping->DebugActors.FindByPredicate([&](const FDBSDebugActor& X){ return X.SourceName == Info.SourceName; });
-                        if (E) bShouldSpawn = E->bSpawnInPreview;
-                    }
-                    if (!bShouldSpawn) continue;
-
-                    if (PerSource.Contains(Info.SourceName) && PerSource[Info.SourceName].IsValid())
-                    {
-                        // Replace existing actor when settings changed
-                        if (AActor* Existing = PerSource[Info.SourceName].Get())
-                        {
-                            Existing->Destroy();
-                        }
-                        PerSource.Remove(Info.SourceName);
-                    }
-                    UClass* Cls = Info.Actor.LoadSynchronous();
-                    if (!Cls) continue;
-                    if (UClass* BaseFilter = Settings->DebugActorFilterBaseClass.LoadSynchronous())
-                    {
-                        if (!Cls->IsChildOf(BaseFilter))
-                        {
-                            continue; // does not pass filter
-                        }
-                    }
-                    FActorSpawnParameters Params;
-                    Params.ObjectFlags |= RF_Transient;
-                    AActor* Spawned = World->SpawnActor<AActor>(Cls, FTransform::Identity, Params);
-                    if (!Spawned) continue;
-
-                    PerSource.Add(Info.SourceName, Spawned);
-
-                    if (Payload.MeshComp.IsValid())
-                    {
-                        const FName Socket = Info.bCustomSocketName ? Info.SocketName : NAME_None;
-                        if (Socket != NAME_None)
-                        {
-                            Spawned->AttachToComponent(Payload.MeshComp.Get(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
-                        }
-                        else
-                        {
-                            if (Socket != NAME_None)
-                            {
-                                const FTransform SocketWorld = Payload.MeshComp->GetSocketTransform(Socket, RTS_World);
-                                Spawned->SetActorTransform(SocketWorld);
-                            }
-                            else
-                            {
-                                Spawned->SetActorTransform(Payload.MeshComp->GetComponentTransform());
-                            }
-                        }
-                    }
-                }
-            }
-        }
+		// Do not spawn DebugActors here; spawning is handled by the tick and UI actions to avoid duplicates
 		break;
 	case EDBSPreviewDebugEvent::Tick:
 		LastDescriptions.FindOrAdd(Payload.MeshComp) = Payload.HitRegistratorsDescription;
@@ -441,15 +355,6 @@ void FDBSEditorPreviewDrawer::ApplySpawnForMesh(USkeletalMesh* Mesh, const TArra
 		}
 		else
 		{
-			// Hide CapsuleHitRegistrator shapes if requested
-			if (Settings->bHideDebugActorHitRegistratorShapes)
-			{
-				TInlineComponentArray<UCapsuleHitRegistrator*> Registrators(Existing);
-				for (UCapsuleHitRegistrator* Reg : Registrators)
-				{
-					if (Reg) { Reg->ShapeColor = FColor(0,0,0,0); Reg->SetHiddenInGame(true, true); Reg->UpdateComponentToWorld(); }
-				}
-			}
 			if (Socket != NAME_None)
 			{
 				Existing->SetActorTransform(Comp->GetSocketTransform(Socket, RTS_World));
@@ -459,7 +364,51 @@ void FDBSEditorPreviewDrawer::ApplySpawnForMesh(USkeletalMesh* Mesh, const TArra
 				Existing->SetActorTransform(Comp->GetComponentTransform());
 			}
 		}
+
+		// Apply HitRegistrator shapes visibility on initial spawn/respawn
+		{
+			const bool bHide = Settings->bHideDebugActorHitRegistratorShapes;
+			TInlineComponentArray<UCapsuleHitRegistrator*> Registrators(Existing);
+			for (UCapsuleHitRegistrator* Reg : Registrators)
+			{
+				if (!Reg) continue;
+				// Prefer component visibility toggle for immediate effect
+				Reg->SetVisibility(!bHide, true);
+				Reg->UpdateComponentToWorld();
+			}
+		}
 	}
+}
+
+void FDBSEditorPreviewDrawer::UpdateHitRegistratorShapesVisibilityForAll()
+{
+    UDamageBehaviorsSystemSettings* Settings = GetMutableDefault<UDamageBehaviorsSystemSettings>();
+    const bool bHide = Settings->bHideDebugActorHitRegistratorShapes;
+    for (auto& Pair : SpawnedActors)
+    {
+        TMap<FString, TWeakObjectPtr<AActor>>& PerSource = Pair.Value;
+        for (auto& SourcePair : PerSource)
+        {
+            if (AActor* Actor = SourcePair.Value.Get())
+            {
+                TInlineComponentArray<UCapsuleHitRegistrator*> Registrators(Actor);
+                for (UCapsuleHitRegistrator* Reg : Registrators)
+                {
+                    if (!Reg) continue;
+                    if (bHide)
+                    {
+						Reg->SetVisibility(false);
+                    }
+                    else
+                    {
+                        // Restore a visible default if needed
+						Reg->SetVisibility(true);
+                    }
+                    Reg->UpdateComponentToWorld();
+                }
+            }
+        }
+    }
 }
 
 void FDBSEditorPreviewDrawer::RemoveSpawnForMeshSource(USkeletalMesh* Mesh, const FString& SourceName)

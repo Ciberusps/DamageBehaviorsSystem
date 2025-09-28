@@ -128,6 +128,25 @@ void FDBSEditorModule::StartupModule()
                         EUserInterfaceActionType::ToggleButton
                     );
 
+                    // Show HitRegistrators shapes (default OFF)
+                    MenuBuilder.AddMenuEntry(
+                        FText::FromString("Show HitRegistrators shapes"),
+                        FText::FromString("Toggle visibility of UCapsuleHitRegistrator shapes on spawned DebugActors"),
+                        FSlateIcon(),
+                        FUIAction(
+                            FExecuteAction::CreateLambda([S]() mutable 
+                            {
+                                S->bHideDebugActorHitRegistratorShapes = !S->bHideDebugActorHitRegistratorShapes;
+                                S->SaveConfig();
+                                FDBSEditorPreviewDrawer::Get()->UpdateHitRegistratorShapesVisibilityForAll();
+                            }),
+                            FCanExecuteAction(),
+                            FIsActionChecked::CreateLambda([S]() { return !S->bHideDebugActorHitRegistratorShapes; })
+                        ),
+                        NAME_None,
+                        EUserInterfaceActionType::ToggleButton
+                    );
+
                     // Do NOT auto-write forced mesh here; only set when user chooses explicitly
 
                     // Force Debug Mesh selector (if multiple previews)

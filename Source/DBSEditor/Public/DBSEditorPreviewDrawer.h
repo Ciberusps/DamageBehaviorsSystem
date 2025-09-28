@@ -34,6 +34,7 @@ public:
 	void GetActivePreviewMeshes(TArray<USkeletalMesh*>& OutMeshes) const;
 	USkeletalMesh* GetFocusedEditorPreviewMesh() const;
 	void RemoveSpawnForMeshSource(USkeletalMesh* Mesh, const FString& SourceName);
+	void UpdateHitRegistratorShapesVisibilityForAll();
 
 private:
 	void OnPreviewDebug(const FDBSPreviewDebugPayload& Payload);

@@ -33,6 +33,7 @@ public:
 	USkeletalMesh* GetAnyActiveMesh() const;
 	void GetActivePreviewMeshes(TArray<USkeletalMesh*>& OutMeshes) const;
 	USkeletalMesh* GetFocusedEditorPreviewMesh() const;
+	void RemoveSpawnForMeshSource(USkeletalMesh* Mesh, const FString& SourceName);
 
 private:
 	void OnPreviewDebug(const FDBSPreviewDebugPayload& Payload);

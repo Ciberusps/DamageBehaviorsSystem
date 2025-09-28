@@ -283,6 +283,19 @@ void FDBSEditorModule::StartupModule()
                                                 else { Existing->Actor = BP->GeneratedClass; }
                                                 SettingsLocal->SaveConfig();
                                                 FSlateApplication::Get().DismissAllMenus();
+
+                                                // Immediate apply: respawn just this source if enabled
+                                                const FDBSDebugActor* Now = Mapping->DebugActors.FindByPredicate([&Source](const FDBSDebugActor& E){ return E.SourceName == Source; });
+                                                if (Now && Now->bSpawnInPreview)
+                                                {
+                                                    FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = Now->SourceName; Info.Actor = Now->Actor; Info.bCustomSocketName = Now->bCustomSocketName; Info.SocketName = Now->SocketName;
+                                                    TArray<FDBSPreviewDebugActorSpawnInfo> Infos; Infos.Add(Info);
+                                                    FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(TargetMesh, Infos);
+                                                }
+                                                else
+                                                {
+                                                    FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(TargetMesh, Source);
+                                                }
                                             });
                                             return CBModule.Get().CreateAssetPicker(Picker);
                                         })
@@ -310,6 +323,14 @@ void FDBSEditorModule::StartupModule()
                                             Existing->bCustomSocketName = !Str.IsEmpty();
                                             Existing->SocketName = FName(Str);
                                             SettingsLocal->SaveConfig();
+
+                                            // Immediate re-attach or respawn if enabled
+                                            if (Existing->bSpawnInPreview)
+                                            {
+                                                FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = Existing->SourceName; Info.Actor = Existing->Actor; Info.bCustomSocketName = Existing->bCustomSocketName; Info.SocketName = Existing->SocketName;
+                                                TArray<FDBSPreviewDebugActorSpawnInfo> Infos; Infos.Add(Info);
+                                                FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(TargetMesh, Infos);
+                                            }
                                         })
                                     ]
                                 ]
@@ -338,6 +359,18 @@ void FDBSEditorModule::StartupModule()
                                             if (!Existing) { FDBSDebugActor NewEntry; NewEntry.SourceName = Source; Mapping->DebugActors.Add(NewEntry); Existing = &Mapping->DebugActors.Last(); }
                                             Existing->bSpawnInPreview = (NewState == ECheckBoxState::Checked);
                                             SettingsLocal->SaveConfig();
+
+                                            // Immediate apply: spawn or remove
+                                            if (Existing->bSpawnInPreview)
+                                            {
+                                                FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = Existing->SourceName; Info.Actor = Existing->Actor; Info.bCustomSocketName = Existing->bCustomSocketName; Info.SocketName = Existing->SocketName;
+                                                TArray<FDBSPreviewDebugActorSpawnInfo> Infos; Infos.Add(Info);
+                                                FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(TargetMesh, Infos);
+                                            }
+                                            else
+                                            {
+                                                FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(TargetMesh, Source);
+                                            }
                                         })
                                     ]
                                 ]
@@ -348,44 +381,8 @@ void FDBSEditorModule::StartupModule()
                     MenuBuilder.EndSection();
 
                     MenuBuilder.AddMenuSeparator();
-                    MenuBuilder.AddMenuEntry(
-                        FText::FromString(TEXT("Apply (Spawn/Attach in Preview)")),
-                        FText::FromString(TEXT("Applies current per-source mapping by spawning debug actors in the preview viewport")),
-                        FSlateIcon(),
-                        FUIAction(FExecuteAction::CreateLambda([]
-                        {
-                            UDamageBehaviorsSystemSettings* SettingsLocal = GetMutableDefault<UDamageBehaviorsSystemSettings>();
-                            // Determine mesh from selection or active preview
-                            USkeletalMesh* Mesh = nullptr;
-                            {
-                                FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-                                TArray<FAssetData> Selection; CBModule.Get().GetSelectedAssets(Selection);
-                                for (const FAssetData& A : Selection)
-                                {
-                                    if (USkeletalMesh* SM = Cast<USkeletalMesh>(A.GetAsset())) { Mesh = SM; break; }
-                                }
-                                if (!Mesh) { Mesh = FDBSEditorPreviewDrawer::Get()->GetAnyActiveMesh(); }
-                            }
-                            if (!Mesh) return;
-
-                            const FDBSDebugActorsForMesh* Mapping = SettingsLocal->CurrentDebugActorsForPreview.FindByKey(Mesh);
-                            TArray<FDBSPreviewDebugActorSpawnInfo> Infos;
-                            if (Mapping)
-                            {
-                                for (const FDBSDebugActor& A : Mapping->DebugActors)
-                                {
-                                    FDBSPreviewDebugActorSpawnInfo Info;
-                                    Info.SourceName = A.SourceName;
-                                    Info.Actor = A.Actor;
-                                    Info.bCustomSocketName = A.bCustomSocketName;
-                                    Info.SocketName = A.SocketName;
-                                    Infos.Add(Info);
-                                }
-                            }
-                            FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(Mesh, Infos);
-                        }))
-                    );
-
+                    // Removed explicit Apply; changes are now applied immediately
+                    
                     MenuBuilder.AddMenuEntry(
                         FText::FromString(TEXT("Save To Defaults")),
                         FText::FromString(TEXT("Copy current mesh mapping to defaults")),
@@ -452,11 +449,14 @@ void FDBSEditorModule::StartupModule()
                                 for (const FDBSDebugActor& A : Mapping->DebugActors)
                                 {
                                     if (A.SourceName == DEFAULT_DAMAGE_BEHAVIOR_SOURCE) continue;
-                                    if (!A.bSpawnInPreview) continue;
+                                    if (!A.bSpawnInPreview) { FDBSEditorPreviewDrawer::Get()->RemoveSpawnForMeshSource(Mesh, A.SourceName); continue; }
                                     FDBSPreviewDebugActorSpawnInfo Info; Info.SourceName = A.SourceName; Info.Actor = A.Actor; Info.bCustomSocketName = A.bCustomSocketName; Info.SocketName = A.SocketName; Infos.Add(Info);
                                 }
                             }
-                            FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(Mesh, Infos);
+                            if (Infos.Num() > 0)
+                            {
+                                FDBSEditorPreviewDrawer::Get()->ApplySpawnForMesh(Mesh, Infos);
+                            }
                         }))
                     );
 
@@ -468,7 +468,9 @@ void FDBSEditorModule::StartupModule()
                         FUIAction(FExecuteAction::CreateLambda([]
                         {
                             ISettingsModule& Settings = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
-                            Settings.ShowViewer("Project", "Project", TEXT("DamageBehaviorsSystemSettings"));
+                            // Route directly to the correct category (matches UDamageBehaviorsSystemSettings::GetCategoryName)
+                            const FName CategoryName = FName(FApp::GetProjectName());
+                            Settings.ShowViewer("Project", CategoryName, TEXT("DamageBehaviorsSystemSettings"));
                         }))
                     );
 

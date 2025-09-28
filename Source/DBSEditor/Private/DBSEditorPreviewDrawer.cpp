@@ -413,36 +413,43 @@ void FDBSEditorPreviewDrawer::ApplySpawnForMesh(USkeletalMesh* Mesh, const TArra
     TMap<FString, TWeakObjectPtr<AActor>>& PerSource = SpawnedActors.FindOrAdd(Comp);
 	for (const FDBSPreviewDebugActorSpawnInfo& Info : SpawnInfos)
 	{
-		UClass* Cls = Info.Actor.LoadSynchronous();
-		if (!Cls) continue;
+		UClass* DesiredClass = Info.Actor.LoadSynchronous();
+		if (!DesiredClass) continue;
 		if (UClass* BaseFilter = Settings->DebugActorFilterBaseClass.LoadSynchronous())
 		{
-			if (!Cls->IsChildOf(BaseFilter)) continue;
+			if (!DesiredClass->IsChildOf(BaseFilter)) continue;
 		}
 		AActor* Existing = PerSource.FindRef(Info.SourceName).Get();
+		// If previously spawned with a different class, destroy and respawn
+		if (Existing && Existing->GetClass() != DesiredClass)
+		{
+			Existing->Destroy();
+			PerSource.Remove(Info.SourceName);
+			Existing = nullptr;
+		}
 		if (!Existing)
 		{
 			FActorSpawnParameters Params; Params.ObjectFlags |= RF_Transient;
-			Existing = World->SpawnActor<AActor>(Cls, FTransform::Identity, Params);
+			Existing = World->SpawnActor<AActor>(DesiredClass, FTransform::Identity, Params);
 			PerSource.Add(Info.SourceName, Existing);
 		}
 
-					const FName Socket = Info.bCustomSocketName ? Info.SocketName : NAME_None;
-					if (Socket != NAME_None)
+		const FName Socket = Info.bCustomSocketName ? Info.SocketName : NAME_None;
+		if (Socket != NAME_None)
 		{
 			Existing->AttachToComponent(Comp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
 		}
 		else
 		{
-					// Hide CapsuleHitRegistrator shapes if requested
-					if (Settings->bHideDebugActorHitRegistratorShapes)
-					{
-						TInlineComponentArray<UCapsuleHitRegistrator*> Registrators(Existing);
-						for (UCapsuleHitRegistrator* Reg : Registrators)
-						{
-							if (Reg) { Reg->ShapeColor = FColor(0,0,0,0); Reg->SetHiddenInGame(true, true); Reg->UpdateComponentToWorld(); }
-						}
-					}
+			// Hide CapsuleHitRegistrator shapes if requested
+			if (Settings->bHideDebugActorHitRegistratorShapes)
+			{
+				TInlineComponentArray<UCapsuleHitRegistrator*> Registrators(Existing);
+				for (UCapsuleHitRegistrator* Reg : Registrators)
+				{
+					if (Reg) { Reg->ShapeColor = FColor(0,0,0,0); Reg->SetHiddenInGame(true, true); Reg->UpdateComponentToWorld(); }
+				}
+			}
 			if (Socket != NAME_None)
 			{
 				Existing->SetActorTransform(Comp->GetSocketTransform(Socket, RTS_World));
@@ -453,6 +460,24 @@ void FDBSEditorPreviewDrawer::ApplySpawnForMesh(USkeletalMesh* Mesh, const TArra
 			}
 		}
 	}
+}
+
+void FDBSEditorPreviewDrawer::RemoveSpawnForMeshSource(USkeletalMesh* Mesh, const FString& SourceName)
+{
+    if (!Mesh) return;
+    USkeletalMeshComponent* Comp = this->FindPreviewMeshCompFor(Mesh);
+    if (!Comp) return;
+    TMap<FString, TWeakObjectPtr<AActor>>* PerSourcePtr = SpawnedActors.Find(Comp);
+    if (!PerSourcePtr) return;
+    TWeakObjectPtr<AActor>& ActorPtr = (*PerSourcePtr).FindOrAdd(SourceName);
+    if (ActorPtr.IsValid())
+    {
+        if (AActor* Existing = ActorPtr.Get())
+        {
+            Existing->Destroy();
+        }
+        (*PerSourcePtr).Remove(SourceName);
+    }
 }
 
 

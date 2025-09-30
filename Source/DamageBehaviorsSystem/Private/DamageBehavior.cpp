@@ -8,6 +8,7 @@
 #include "DamageBehaviorsSystemSettings.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
+#include "Perception/AISense_Hearing.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageBehavior)
 
@@ -42,6 +43,11 @@ AActor* UDamageBehavior::GetHitTarget_Implementation(
 	UCapsuleHitRegistrator* CapsuleHitRegistrator) const
 {
 	return GetRootAttachedActor(HitActor_In);
+}
+
+AActor* UDamageBehavior::GetInstigator_Implementation() const
+{
+	return GetOwningActor();
 }
 
 TArray<UCapsuleHitRegistrator*> UDamageBehavior::GetCapsuleHitRegistratorsFromAllSources() const
@@ -283,6 +289,19 @@ bool UDamageBehavior::ProcessHit_Implementation(
 	UCapsuleHitRegistrator* CapsuleHitRegistrator,
 	FInstancedStruct& Payload_Out)
 {
+	
+	// Report noise event on hit anything, if bReportNoiseEventOnHit in DamageDescription
+	if (bReportNoiseEventOnHit)
+	{
+		AActor* Instigator = GetInstigator();
+		UAISense_Hearing::ReportNoiseEvent(this,
+			HitRegistratorHitResult.HitResult.Location,
+			NoiseEventOnHitSettings.Loudness,
+			Instigator,
+			NoiseEventOnHitSettings.MaxRange,
+			NoiseEventOnHitSettings.Tag);
+	}
+	
 	return true;
 }
 

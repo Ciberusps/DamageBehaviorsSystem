@@ -43,6 +43,7 @@ public class DamageBehaviorsSystem : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AIModule"
 			}
 			);
 	}

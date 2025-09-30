@@ -17,6 +17,21 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageBehaviorHitRegistered,
     const FInstancedStruct&, Payload
 );
 
+USTRUCT(BlueprintType)
+struct FDBSNoiseEventOnDamageSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Loudness = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxRange = 10 * 100; // 10m
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName Tag = NAME_None;
+};
+
 /**
  * DamageBehavior entity that handles all hits from dumb "CapsuleHitRegistrators"
  * and filter hitted objects by adding them in "HitActors".
@@ -56,6 +71,12 @@ public:
 	// протащить несколько секунд
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     bool bAttachEnemiesToCapsuleWhileActive = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(InlineEditConditionToggle))
+	bool bReportNoiseEventOnHit = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition="bReportNoiseEventOnHit"))
+	FDBSNoiseEventOnDamageSettings NoiseEventOnHitSettings;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     FString Comment = FString("");
@@ -98,6 +119,9 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent)
     void ClearHittedActors();
+
+	UFUNCTION(BlueprintNativeEvent)
+	AActor* GetInstigator() const;
 
 	UFUNCTION(BlueprintCallable)
 	AActor* GetOwningActor() const { return OwnerActor.Get(); };

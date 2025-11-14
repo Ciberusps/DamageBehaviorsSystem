@@ -12,6 +12,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageBehavior)
 
+UDamageBehavior::UDamageBehavior()
+{
+	// by default FTickableGameObject use TG_PostPhysics
+	// SetTickGroup(TG_PostPhysics);
+}
+
 void UDamageBehavior::Init(
 	AActor* Owner_In,
 	const TArray<FDBSHitRegistratorsSource>& CapsuleHitRegistratorsSources_In
@@ -241,6 +247,64 @@ void UDamageBehavior::HandleHitInternally(const FDBSHitRegistratorHitResult& Hit
 			OnHitRegistered.Broadcast(HitRegistratorHitResult, this, CapsuleHitRegistrator, Payload_Out);
 		}
 	}
+}
+
+void UDamageBehavior::Tick(float DeltaTime)
+{
+	if (!bIsActive)
+	{
+		return;
+	}
+
+	if (HitDetectionSettings.HitDetectionType != EDamageBehaviorHitDetectionType::ByTrace)
+	{
+		return;
+	}
+
+	for (const FDBSHitRegistratorsSource& CapsuleHitRegistratorsSource : HitRegistratorsSources)
+	{
+		const FDBSHitRegistratorsToActivateSource* HitRegistratorsToActivate = HitRegistratorsToActivateBySource.FindByPredicate(
+			[&](const FDBSHitRegistratorsToActivateSource& Source)
+			{
+				return Source.SourceName == CapsuleHitRegistratorsSource.SourceName;
+			}
+		);
+
+		if (!HitRegistratorsToActivate)
+		{
+			continue;
+		}
+
+		for (UCapsuleHitRegistrator* CapsuleHitRegistrator : CapsuleHitRegistratorsSource.CapsuleHitRegistrators)
+		{
+			if (!IsValid(CapsuleHitRegistrator))
+			{
+				continue;
+			}
+
+			if (CapsuleHitRegistrator->GetHitDetectionType() != EDamageBehaviorHitDetectionType::ByTrace)
+			{
+				continue;
+			}
+
+			if (!HitRegistratorsToActivate->HitRegistratorsNames.Contains(CapsuleHitRegistrator->GetName()))
+			{
+				continue;
+			}
+
+			if (!CapsuleHitRegistrator->IsHitRegistrationEnabled())
+			{
+				continue;
+			}
+
+			CapsuleHitRegistrator->TickHitRegistration(DeltaTime);
+		}
+	}
+}
+
+bool UDamageBehavior::IsTickable() const
+{
+	return bIsActive && HitDetectionSettings.HitDetectionType == EDamageBehaviorHitDetectionType::ByTrace;
 }
 
 void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const FInstancedStruct& Payload)

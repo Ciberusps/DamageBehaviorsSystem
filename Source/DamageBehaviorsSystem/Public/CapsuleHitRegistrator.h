@@ -54,12 +54,14 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	float GetLineThickness() const { return LineThickness; };
+
+	void TickHitRegistration(float DeltaTime);
+	bool IsHitRegistrationEnabled() const { return bIsHitRegistrationEnabled; }
+	EDamageBehaviorHitDetectionType GetHitDetectionType() const { return CurrentHitDetectionSettings.HitDetectionType; }
 	
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Melee hit registration")
     bool bIsHitRegistrationEnabled = false;
-
-    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
     FVector PreviousComponentLocation = FVector::ZeroVector;

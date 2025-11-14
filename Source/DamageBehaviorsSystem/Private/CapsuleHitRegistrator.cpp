@@ -11,20 +11,14 @@
 
 UCapsuleHitRegistrator::UCapsuleHitRegistrator()
 {
-	PrimaryComponentTick.TickInterval = 0.0f;
-	PrimaryComponentTick.bCanEverTick = true;
-    PrimaryComponentTick.bStartWithTickEnabled = false;
+	PrimaryComponentTick.bCanEverTick = false;
 	CapsuleRadius = 5.0f;
     ShapeColor = FColor(255.0f, 0.0f, 0.0f);
 	SetCollisionProfileName(FName("NoCollision"));
-    SetTickGroup(TG_PostPhysics);
 }
 
-void UCapsuleHitRegistrator::TickComponent(float DeltaTime, ELevelTick TickType,
-	FActorComponentTickFunction* ThisTickFunction)
+void UCapsuleHitRegistrator::TickHitRegistration(float /*DeltaTime*/)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
 	if (bIsHitRegistrationEnabled
 		&& CurrentHitDetectionSettings.HitDetectionType == EDamageBehaviorHitDetectionType::ByTrace)
 	{
@@ -154,7 +148,7 @@ void UCapsuleHitRegistrator::SetIsHitRegistrationEnabled(bool bIsEnabled_In, FDa
 		case EDamageBehaviorHitDetectionType::ByTrace:
 		{
 			PreviousComponentLocation = GetComponentLocation();
-			SetComponentTickEnabled(bIsEnabled_In);
+			SetComponentTickEnabled(false);
 			bIsHitRegistrationEnabled = bIsEnabled_In;
 			break;
 		}

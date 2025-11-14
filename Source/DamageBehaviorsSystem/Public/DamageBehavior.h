@@ -6,6 +6,7 @@
 #include "CapsuleHitRegistrator.h"
 #include "HitRegistratorsSource.h"
 #include "StructUtils/InstancedStruct.h"
+#include "Tickable.h"
 #include "DamageBehavior.generated.h"
 
 class UCapsuleHitRegistrator;
@@ -38,11 +39,13 @@ struct FDBSNoiseEventOnDamageSettings
  * When "InvokeDamageBehavior" ends, all "HitActors" cleanup
  */
 UCLASS(Blueprintable, BlueprintType, DefaultToInstanced, EditInlineNew, AutoExpandCategories = ("Default,DamageBehavior"), meta=(DisplayName=""))
-class DAMAGEBEHAVIORSSYSTEM_API UDamageBehavior : public UObject
+class DAMAGEBEHAVIORSSYSTEM_API UDamageBehavior : public UObject, public FTickableGameObject
 {
     GENERATED_BODY()
 
 public:
+	UDamageBehavior();
+
     UPROPERTY(BlueprintAssignable)
     FOnDamageBehaviorHitRegistered OnHitRegistered;
 
@@ -136,6 +139,11 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	const FInstancedStruct& GetCurrentInvokePayload() const { return CurrentInvokePayload; };
+
+	virtual void Tick(float DeltaTime) override;
+	virtual bool IsTickable() const override;
+	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Conditional; };
+	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UDamageBehavior, STATGROUP_Tickables); };
 
 	bool operator==(const FString& OtherName) const
 	{

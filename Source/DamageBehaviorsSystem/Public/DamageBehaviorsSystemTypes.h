@@ -24,8 +24,18 @@ struct FDamageBehaviorHitDetectionSettings
 public:
 	UPROPERTY(EditDefaultsOnly, Category="DamageBehavior")
 	EDamageBehaviorHitDetectionType HitDetectionType = EDamageBehaviorHitDetectionType::ByTrace;
+	
+	
+	UPROPERTY(EditDefaultsOnly, Category="DamageBehavior", meta=(InlineEditConditionToggle))
+	bool bUseCustomTraceChannel = false;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="DamageBehavior", meta = (EditCondition = "bUseCustomTraceChannel"))
+	TEnumAsByte<ECollisionChannel> CustomTraceChannel = ECC_Visibility;
+	
+	
 	UPROPERTY(EditDefaultsOnly, Category="DamageBehavior", meta = (EditCondition = "HitDetectionType == EDamageBehaviorHitDetectionType::ByEntering"))
 	bool bCheckOverlappingActorsOnStart = true;
+	
 	UPROPERTY(EditDefaultsOnly, Category="DamageBehavior", meta = (EditCondition = "HitDetectionType == EDamageBehaviorHitDetectionType::ByEntering"))
 	FCollisionProfileName CollisionProfileName = FCollisionProfileName(FName("VolumeHitRegistrator"));
 

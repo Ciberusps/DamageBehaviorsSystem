@@ -66,7 +66,12 @@ void UCapsuleHitRegistrator::ProcessHitRegistration()
     }
 
 	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
-
+	TEnumAsByte<ECollisionChannel> TraceChannel = DamageBehaviorsSystemSettings->HitRegistratorsTraceChannel;
+	if (CurrentHitDetectionSettings.bUseCustomTraceChannel)
+	{
+		TraceChannel = CurrentHitDetectionSettings.CustomTraceChannel;
+	}
+	
 	bool bHasMeleeHit = SweepCapsuleMultiByChannel(
 		GetWorld(),
 		HitResults,
@@ -75,7 +80,7 @@ void UCapsuleHitRegistrator::ProcessHitRegistration()
 		GetScaledCapsuleRadius(),
 		GetScaledCapsuleHalfHeight(),
 		GetComponentRotation().Quaternion(),
-		DamageBehaviorsSystemSettings->HitRegistratorsTraceChannel,
+		TraceChannel,
 		CollisionParams,
 		FCollisionResponseParams::DefaultResponseParam,
 		bIsDebugEnabled,

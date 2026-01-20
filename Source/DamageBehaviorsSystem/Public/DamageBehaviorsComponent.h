@@ -75,6 +75,9 @@ public:
     AActor* GetOwningActor() const;
     virtual AActor* GetOwningActor_Implementation() const;
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void Init();
+	
 	// DamageBehaviorsSourceToUse - is source actor on which we will activate DamageBehavior
 	// its required when we want to invoke attack for example on shield in LeftHand
 	// in such case we should set "DamageBehaviorsSourceToUse" = "LeftHandWeapon"

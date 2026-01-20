@@ -16,8 +16,18 @@ void UDamageBehaviorsComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-    OwnerActor = GetOwningActor();
+	Init();
+}
 
+AActor* UDamageBehaviorsComponent::GetOwningActor_Implementation() const
+{
+    return GetOwner();
+}
+
+void UDamageBehaviorsComponent::Init_Implementation()
+{
+    OwnerActor = GetOwningActor();
+	
 	PrepareDamageBehaviorsSources();
 	
 	// Now activate the ones that need to start active
@@ -33,18 +43,13 @@ void UDamageBehaviorsComponent::BeginPlay()
 		
 		// if (DamageBehavior->bAutoHandleDamage)
 		// {
-			DamageBehavior->OnHitRegistered.AddUniqueDynamic(this, &ThisClass::DefaultOnHitAnything);
+		DamageBehavior->OnHitRegistered.AddUniqueDynamic(this, &ThisClass::DefaultOnHitAnything);
 		// }
 		if (DamageBehavior->bInvokeDamageBehaviorOnStart)
 		{
 			InvokeDamageBehavior(DamageBehavior->Name, true, {}, {});
 		}
 	}
-}
-
-AActor* UDamageBehaviorsComponent::GetOwningActor_Implementation() const
-{
-    return GetOwner();
 }
 
 void UDamageBehaviorsComponent::InvokeDamageBehavior(
@@ -189,6 +194,7 @@ TArray<UDamageBehaviorsSourceEvaluator*> UDamageBehaviorsComponent::SpawnEvaluat
 
 void UDamageBehaviorsComponent::PrepareDamageBehaviorsSources()
 {
+	DamageBehaviorsSources.Empty();
 	DamageBehaviorsSources.Add(FDamageBehaviorsSource(DEFAULT_DAMAGE_BEHAVIOR_SOURCE, OwnerActor, nullptr)); 
 	DamageBehaviorsSourceEvaluators = SpawnEvaluators();
 	for (const TObjectPtr<UDamageBehaviorsSourceEvaluator> DamageBehaviorsSourceEvaluator : DamageBehaviorsSourceEvaluators)

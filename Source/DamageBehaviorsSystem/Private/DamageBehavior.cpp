@@ -56,6 +56,20 @@ AActor* UDamageBehavior::GetInstigator_Implementation() const
 	return GetOwningActor();
 }
 
+bool UDamageBehavior::CanMakeValidationTrace_Implementation(
+	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
+	UCapsuleHitRegistrator* CapsuleHitRegistrator)
+{
+	return false;
+}
+
+bool UDamageBehavior::MakeValidationTrace_Implementation(
+	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
+	UCapsuleHitRegistrator* CapsuleHitRegistrator)
+{
+	return false;
+}
+
 TArray<UCapsuleHitRegistrator*> UDamageBehavior::GetCapsuleHitRegistratorsFromAllSources() const
 {
 	TArray<UCapsuleHitRegistrator*> Result = {};
@@ -175,6 +189,18 @@ TArray<FString> UDamageBehavior::GetHitRegistratorsNameOptions() const
 void UDamageBehavior::HandleHitInternally(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator)
 {
     if (!bIsActive) return;
+
+	if (bCheckHitIfEnemyBehindObstacle)
+	{
+		if (MakeValidationTrace(HitRegistratorHitResult, CapsuleHitRegistrator))
+		{
+				
+		}
+		else
+		{
+			return;
+		}
+	}
 
     AActor* HitActor = HitRegistratorHitResult.HitActor.Get();
     if (!IsValid(HitActor) || this->HitActors.Contains(HitActor)) return;

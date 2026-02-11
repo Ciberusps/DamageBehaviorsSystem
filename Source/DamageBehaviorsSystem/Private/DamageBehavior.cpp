@@ -75,7 +75,7 @@ bool UDamageBehavior::MakeValidationTrace_Implementation(
 			FHitResult OutHit;
 			FVector StartLocation = GetOwningActor()->GetRootComponent()->GetComponentLocation();
 			FVector EndLocation = StartLocation + (CapsuleHitRegistrator->GetUpVector() * CapsuleHitRegistrator->GetUnscaledCapsuleHalfHeight() * 2.f);
-			ETraceTypeQuery Channel = UEngineTypes::ConvertToTraceType(ECC_Visibility);
+			ETraceTypeQuery Channel = UEngineTypes::ConvertToTraceType(CapsuleHitRegistrator->GetTraceChannel()); 
 			TArray<AActor*> Actors;
 			Actors.Add(OwnerCharacter);
 			UKismetSystemLibrary::LineTraceSingle(GetWorld(), StartLocation, EndLocation, Channel, false, Actors, EDrawDebugTrace::None,
@@ -216,13 +216,9 @@ void UDamageBehavior::HandleHitInternally(const FDBSHitRegistratorHitResult& Hit
 
 	if (bMakeValidationTrace)
 	{
-		if (MakeValidationTrace(HitRegistratorHitResult, CapsuleHitRegistrator))
+		if (!MakeValidationTrace(HitRegistratorHitResult, CapsuleHitRegistrator))
 		{
-				
-		}
-		else
-		{
-			return;
+				return;
 		}
 	}
 

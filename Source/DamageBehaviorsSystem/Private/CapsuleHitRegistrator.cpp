@@ -165,6 +165,17 @@ void UCapsuleHitRegistrator::AddActorsToIgnoreList(const TArray<AActor*>& Actors
     IgnoredActors.Append(Actors_In);
 }
 
+ECollisionChannel UCapsuleHitRegistrator::GetTraceChannel()
+{
+	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
+	TEnumAsByte<ECollisionChannel> TraceChannel = DamageBehaviorsSystemSettings->HitRegistratorsTraceChannel;
+	if (CurrentHitDetectionSettings.bUseCustomTraceChannel)
+	{
+		TraceChannel = CurrentHitDetectionSettings.CustomTraceChannel;
+	}
+	return TraceChannel;
+}
+
 void UCapsuleHitRegistrator::OnBegingOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (OnHitRegistered.IsBound())

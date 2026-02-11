@@ -53,6 +53,9 @@ public:
     void AddActorsToIgnoreList(const TArray<AActor*>& Actors_In);
 
 	UFUNCTION(BlueprintCallable)
+	ECollisionChannel GetTraceChannel();
+
+	UFUNCTION(BlueprintCallable)
 	float GetLineThickness() const { return LineThickness; };
 
 	void TickHitRegistration(float DeltaTime);

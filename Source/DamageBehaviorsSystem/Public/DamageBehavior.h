@@ -18,6 +18,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageBehaviorHitRegistered,
     const FInstancedStruct&, Payload
 );
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInvokeEnd, bool, bHitAnything);
+
 USTRUCT(BlueprintType)
 struct FDBSNoiseEventOnDamageSettings
 {
@@ -49,6 +51,9 @@ public:
     UPROPERTY(BlueprintAssignable)
     FOnDamageBehaviorHitRegistered OnHitRegistered;
 
+	UPROPERTY(BlueprintAssignable)
+	FOnInvokeEnd OnInvokeEnd;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
 	FString Name = "";
 
@@ -61,6 +66,10 @@ public:
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     bool bAutoHandleDamage = false;
+
+	//If true checks obstacles between enemy and hit capsule and if there are any - enemy won't be hit
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DamageBehavior")
+	bool bMakeValidationTrace = false;
 
 	// used for attack GameplayAbilities mostly
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
@@ -119,6 +128,12 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent)
     void AddHittedActor(AActor* Actor_In, bool bCanBeAttached, bool bAddAttachedActorsToActorAlso);
+
+	UFUNCTION(BlueprintNativeEvent)
+	bool CanMakeValidationTrace(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
+	
+	UFUNCTION(BlueprintNativeEvent)
+	bool MakeValidationTrace(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator);
 
 	UFUNCTION(BlueprintNativeEvent)
     void ClearHittedActors();

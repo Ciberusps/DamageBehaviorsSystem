@@ -56,6 +56,44 @@ AActor* UDamageBehavior::GetInstigator_Implementation() const
 	return GetOwningActor();
 }
 
+bool UDamageBehavior::CanMakeValidationTrace_Implementation(
+	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
+	UCapsuleHitRegistrator* CapsuleHitRegistrator)
+{
+	return false;
+}
+
+bool UDamageBehavior::MakeValidationTrace_Implementation(
+	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
+	UCapsuleHitRegistrator* CapsuleHitRegistrator)
+{
+	if (IsValid(GetOwningActor()))
+	{
+		AActor* OwnerCharacter = GetOwningActor()->GetOwner();
+		if (IsValid(OwnerCharacter))
+		{
+			FHitResult OutHit;
+			FVector StartLocation = GetOwningActor()->GetRootComponent()->GetComponentLocation();
+			FVector EndLocation = StartLocation + (CapsuleHitRegistrator->GetUpVector() * CapsuleHitRegistrator->GetUnscaledCapsuleHalfHeight() * 2.f);
+			ETraceTypeQuery Channel = UEngineTypes::ConvertToTraceType(CapsuleHitRegistrator->GetTraceChannel()); 
+			TArray<AActor*> Actors;
+			Actors.Add(OwnerCharacter);
+			UKismetSystemLibrary::LineTraceSingle(GetWorld(), StartLocation, EndLocation, Channel, false, Actors, EDrawDebugTrace::None,
+				OutHit,true, FLinearColor::Yellow, FLinearColor::Blue, 10.f);
+			if (OutHit.bBlockingHit)
+			{
+				return false;
+			}
+			else
+			{
+				return true;
+			}
+		}
+		return true;
+	}
+	return true;
+}
+
 TArray<UCapsuleHitRegistrator*> UDamageBehavior::GetCapsuleHitRegistratorsFromAllSources() const
 {
 	TArray<UCapsuleHitRegistrator*> Result = {};
@@ -175,6 +213,14 @@ TArray<FString> UDamageBehavior::GetHitRegistratorsNameOptions() const
 void UDamageBehavior::HandleHitInternally(const FDBSHitRegistratorHitResult& HitRegistratorHitResult, UCapsuleHitRegistrator* CapsuleHitRegistrator)
 {
     if (!bIsActive) return;
+
+	if (bMakeValidationTrace)
+	{
+		if (!MakeValidationTrace(HitRegistratorHitResult, CapsuleHitRegistrator))
+		{
+				return;
+		}
+	}
 
     AActor* HitActor = HitRegistratorHitResult.HitActor.Get();
     if (!IsValid(HitActor) || this->HitActors.Contains(HitActor)) return;
@@ -334,9 +380,10 @@ void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const FIns
 			// TODO: validation failed message
 		}
 	}
-
+	
     if (!bShouldActivate)
     {
+    	OnInvokeEnd.Broadcast(HitActors.Num()>0);
         ClearHittedActors();
     }
 }

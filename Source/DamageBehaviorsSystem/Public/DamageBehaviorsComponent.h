@@ -7,6 +7,7 @@
 #include "DamageBehavior.h"
 #include "CapsuleHitRegistrator.h"
 #include "Components/ActorComponent.h"
+#include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "DamageBehaviorsComponent.generated.h"
 
@@ -15,6 +16,7 @@ class UCapsuleHitRegistratorUDamageBehavior;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDamageBehaviorsSystem, Log, All);
 
+// TODO: add "Tags" or just get them from DamageBehavior?
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FDamageBehaviorOnProcessedHit,
 	const UDamageBehavior*, DamageBehavior,
 	const FString, DamageBehaviorName,
@@ -67,7 +69,7 @@ public:
 		Instanced,
 		Category="DamageBehaviorsComponent",
 		DisplayName="DamageBehaviors",
-		meta=(TitleProperty="Name", ShowOnlyInnerProperties)
+		meta=(TitleProperty="Description", ShowOnlyInnerProperties)
 	)
 	TArray<TObjectPtr<UDamageBehavior>> DamageBehaviorsList;
 
@@ -83,9 +85,24 @@ public:
 	// in such case we should set "DamageBehaviorsSourceToUse" = "LeftHandWeapon"
 	// by default all attacks use Character as source of DamageBehaviors it fits only for
 	// attacks by body parts (hands/footstomps and so on)
-    UFUNCTION(BlueprintCallable, meta=(AutoCreateRefTerm="DamageBehaviorsSourcesToUse,Payload"))
+    UFUNCTION(
+		BlueprintCallable,
+		meta=(
+			AutoCreateRefTerm="DamageBehaviorsSourcesToUse,Payload",
+			DeprecatedFunction,
+			DeprecationMessage="Use InvokeDamageBehaviorByTag."
+		)
+	)
 	void InvokeDamageBehavior(
 		const FString DamageBehaviorName,
+		const bool bShouldActivate,
+		const TArray<FString>& DamageBehaviorsSourcesToUse,
+		const FInstancedStruct& Payload
+	);
+
+	UFUNCTION(BlueprintCallable, meta=(AutoCreateRefTerm="DamageBehaviorsSourcesToUse,Payload"))
+	void InvokeDamageBehaviorByTag(
+		UPARAM(meta=(Categories="DamageBehaviors")) const FGameplayTag DamageBehaviorTag,
 		const bool bShouldActivate,
 		const TArray<FString>& DamageBehaviorsSourcesToUse,
 		const FInstancedStruct& Payload
@@ -94,8 +111,11 @@ public:
     UFUNCTION(BlueprintCallable)
     const TArray<UDamageBehavior*>& GetDamageBehaviors() const { return DamageBehaviorsList; };
 
-    UFUNCTION(BlueprintCallable)
+    UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use GetDamageBehaviorByTag."))
     UDamageBehavior* GetDamageBehavior(const FString Name) const;
+
+	UFUNCTION(BlueprintCallable)
+	UDamageBehavior* GetDamageBehaviorByTag(const FGameplayTag Tag) const;
 
 	// TODO: попытаться вернуть, но хз зач все это можно в DamageBehavior'ах ловить
     // for cases there HandleHitInternally is custom, e.g. BProjectileComponent, MeleeWeaponItem, ...

@@ -5,6 +5,7 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "CapsuleHitRegistrator.h"
+#include "DBSGameplayTags.h"
 #include "DamageBehaviorsSystemSettings.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
@@ -23,6 +24,8 @@ void UDamageBehavior::Init(
 	const TArray<FDBSHitRegistratorsSource>& CapsuleHitRegistratorsSources_In
 )
 {
+	ApplyLegacyMigration();
+
     OwnerActor = Owner_In;
 	HitRegistratorsSources = CapsuleHitRegistratorsSources_In;
 
@@ -108,6 +111,7 @@ TArray<UCapsuleHitRegistrator*> UDamageBehavior::GetCapsuleHitRegistratorsFromAl
 void UDamageBehavior::PostInitProperties()
 {
 	Super::PostInitProperties();
+	ApplyLegacyMigration();
 	// Only sync on *instances*, not the CDO
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -118,15 +122,25 @@ void UDamageBehavior::PostInitProperties()
 void UDamageBehavior::PostLoad()
 {
 	Super::PostLoad();
+	ApplyLegacyMigration();
 	SyncSourcesFromSettings();
 }
 
 void UDamageBehavior::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	ApplyLegacyMigration();
 	SyncSourcesFromSettings();
 }
 #endif
+
+void UDamageBehavior::ApplyLegacyMigration()
+{
+	if (!Tags.HasTagExact(DBSGameplayTags::TAG_DamageBehaviors_Default) && Description == TEXT("DmgBehDefault"))
+	{
+		Tags.AddTag(DBSGameplayTags::TAG_DamageBehaviors_Default);
+	}
+}
 
 void UDamageBehavior::SyncSourcesFromSettings()
 {

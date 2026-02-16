@@ -65,13 +65,7 @@ void UCapsuleHitRegistrator::ProcessHitRegistration()
         CollisionParams.AddIgnoredActors(CharacterAttachedActors);
     }
 
-	const UDamageBehaviorsSystemSettings* DamageBehaviorsSystemSettings = GetDefault<UDamageBehaviorsSystemSettings>();
-	TEnumAsByte<ECollisionChannel> TraceChannel = DamageBehaviorsSystemSettings->HitRegistratorsTraceChannel;
-	if (CurrentHitDetectionSettings.bUseCustomTraceChannel)
-	{
-		TraceChannel = CurrentHitDetectionSettings.CustomTraceChannel;
-	}
-	
+	TEnumAsByte<ECollisionChannel> TraceChannel = GetTraceChannel();
 	bool bHasMeleeHit = SweepCapsuleMultiByChannel(
 		GetWorld(),
 		HitResults,

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "CapsuleHitRegistrator.h"
+#include "GameplayTagContainer.h"
 #include "HitRegistratorsSource.h"
 #include "StructUtils/InstancedStruct.h"
 #include "Tickable.h"
@@ -53,9 +54,14 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnInvokeEnd OnInvokeEnd;
+
+	// Name was DEPRECATED use "Tags"
+	// В Description должен совпадать с названием атаки в дереве поведения для удобства 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", DisplayName="Description (Name DEPRECATED use Tags)")
+	FString Description = "";
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
-	FString Name = "";
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", meta=(Categories = "DamageBehaviors"))
+	FGameplayTagContainer Tags;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", meta=(ShowOnlyInnerProperties))
 	FDamageBehaviorHitDetectionSettings HitDetectionSettings;
@@ -162,11 +168,21 @@ public:
 
 	bool operator==(const FString& OtherName) const
 	{
-		return Name == OtherName;
+		return Description == OtherName;
 	}
 	bool operator==(const UDamageBehavior* Other) const
 	{
-		return Name == Other->Name;
+		if (!Other)
+		{
+			return false;
+		}
+
+		if (Tags.HasAnyExact(Other->Tags))
+		{
+			return true;
+		}
+
+		return Description == Other->Description;
 	}
 
 protected:
@@ -180,6 +196,8 @@ protected:
 #endif
 	
 private:
+	void ApplyLegacyMigration();
+
     UPROPERTY()
     TArray<TWeakObjectPtr<AActor>> HitActors = {};
     UPROPERTY()

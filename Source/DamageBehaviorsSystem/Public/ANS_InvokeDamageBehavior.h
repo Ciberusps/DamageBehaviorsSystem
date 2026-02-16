@@ -100,10 +100,13 @@ class DAMAGEBEHAVIORSSYSTEM_API UANS_InvokeDamageBehavior : public UAnimNotifySt
 
 public:
 	UANS_InvokeDamageBehavior();
+	virtual void PostLoad() override;
+
 
 #if WITH_EDITOR
 	/** Override this to prevent firing this notify state type in animation editors */
 	virtual bool ShouldFireInEditor() { return true; }
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	virtual FLinearColor GetEditorColor() override { return FLinearColor(1.0f, 0.491021f, 0.0f); };
@@ -116,8 +119,13 @@ public:
 	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
-    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Default")
-    FString Name = FString("DmgBehDefault");
+	// DEPRECATED use Tag
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Default", DisplayName="Name (DEPRECATED use Tag)")
+	FString Name = FString("DmgBehDefault");
+
+	// Use this field in ANS (single tag)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Default", meta=(Categories = "DamageBehaviors"))
+	FGameplayTag Tag;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Default")
 	TMap<FString, bool> TargetSources;
@@ -137,4 +145,6 @@ private:
 	void DrawCapsules(UWorld* WorldContextObject, USkeletalMeshComponent* MeshComp);
 
 	TArray<FString> GetDamageBehaviorSourcesList() const;
+
+	void ApplyLegacyMigration();
 };

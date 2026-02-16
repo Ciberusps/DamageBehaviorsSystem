@@ -3,6 +3,7 @@
 
 #include "ANS_InvokeDamageBehavior.h"
 
+#include "DBSGameplayTags.h"
 #include "DamageBehaviorsComponent.h"
 #include "DamageBehaviorsSystemSettings.h"
 #include "DBSPreviewDebugBridge.h"
@@ -183,6 +184,28 @@ UANS_InvokeDamageBehavior::UANS_InvokeDamageBehavior()
 	}
 }
 
+void UANS_InvokeDamageBehavior::PostLoad()
+{
+	Super::PostLoad();
+	ApplyLegacyMigration();
+}
+
+#if WITH_EDITOR
+void UANS_InvokeDamageBehavior::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	ApplyLegacyMigration();
+}
+#endif
+
+void UANS_InvokeDamageBehavior::ApplyLegacyMigration()
+{
+	if (!Tag.IsValid() && Name == TEXT("DmgBehDefault"))
+	{
+		Tag = DBSGameplayTags::TAG_DamageBehaviors_Default;
+	}
+}
+
 void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
@@ -217,7 +240,9 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 			FDBSDebugActor DebugActor = GetFilledDebugActor(DamageBehaviorsSource);
 			if (!DebugActor.IsValid()) continue;
 
-			UDamageBehavior* DamageBehavior = DebugActor.DBC->GetDamageBehavior(Name);
+			UDamageBehavior* DamageBehavior = Tag.IsValid()
+				? DebugActor.DBC->GetDamageBehaviorByTag(Tag)
+				: DebugActor.DBC->GetDamageBehavior(Name);
 			if (!DamageBehavior) continue;
 
 			for (FDBSHitRegistratorsToActivateSource HitRegistratorsToActivateBySource : DamageBehavior->HitRegistratorsToActivateBySource)
@@ -275,7 +300,14 @@ void UANS_InvokeDamageBehavior::NotifyBegin(USkeletalMeshComponent* MeshComp, UA
 		UDamageBehaviorsComponent* DmgBehaviorComponent = StaticCast<UDamageBehaviorsComponent*>(Component);
 		if (!DmgBehaviorComponent) return;
 		
-		DmgBehaviorComponent->InvokeDamageBehavior(Name, true, GetDamageBehaviorSourcesList(), Payload);
+		if (Tag.IsValid())
+		{
+			DmgBehaviorComponent->InvokeDamageBehaviorByTag(Tag, true, GetDamageBehaviorSourcesList(), Payload);
+		}
+		else
+		{
+			DmgBehaviorComponent->InvokeDamageBehavior(Name, true, GetDamageBehaviorSourcesList(), Payload);
+		}
 	}
 }
 
@@ -317,7 +349,14 @@ void UANS_InvokeDamageBehavior::NotifyEnd(USkeletalMeshComponent* MeshComp, UAni
 		UDamageBehaviorsComponent* DmgBehaviorComponent = StaticCast<UDamageBehaviorsComponent*>(Component);
 		if (!DmgBehaviorComponent) return;
 	
-		DmgBehaviorComponent->InvokeDamageBehavior(Name, false, GetDamageBehaviorSourcesList(), Payload);	
+		if (Tag.IsValid())
+		{
+			DmgBehaviorComponent->InvokeDamageBehaviorByTag(Tag, false, GetDamageBehaviorSourcesList(), Payload);
+		}
+		else
+		{
+			DmgBehaviorComponent->InvokeDamageBehavior(Name, false, GetDamageBehaviorSourcesList(), Payload);
+		}
 	}
 }
 

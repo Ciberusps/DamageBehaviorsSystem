@@ -6,11 +6,11 @@
 #include "CapsuleHitRegistrator.h"
 #include "DamageBehaviorsSource.h"
 #include "DamageBehaviorsSystemSettings.h"
+#include "DBSGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageBehaviorsComponent)
 
 DEFINE_LOG_CATEGORY(LogDamageBehaviorsSystem);
-
 
 void UDamageBehaviorsComponent::BeginPlay()
 {
@@ -47,7 +47,16 @@ void UDamageBehaviorsComponent::Init_Implementation()
 		// }
 		if (DamageBehavior->bInvokeDamageBehaviorOnStart)
 		{
-			InvokeDamageBehavior(DamageBehavior->Name, true, {}, {});
+			TArray<FGameplayTag> BehaviorTags;
+			DamageBehavior->Tags.GetGameplayTagArray(BehaviorTags);
+			if (BehaviorTags.Num() > 0)
+			{
+				InvokeDamageBehaviorByTag(BehaviorTags[0], true, {}, {});
+			}
+			else
+			{
+				InvokeDamageBehavior(DamageBehavior->Description, true, {}, {});
+			}
 		}
 	}
 }
@@ -98,8 +107,12 @@ void UDamageBehaviorsComponent::InvokeDamageBehavior(
 		else
 		{
 			FDamageBehaviorsSource* DamageBehaviorsSource = DamageBehaviorsSources.FindByKey(BehaviorsSourcesToUse);
+			if (!DamageBehaviorsSource)
+			{
+				continue;
+			}
 			UDamageBehaviorsComponent* DBSSourceDBComponent = DamageBehaviorsSource->GetDamageBehaviorsComponent();
-			if (!DamageBehaviorsSource || !DBSSourceDBComponent)
+			if (!DBSSourceDBComponent)
 			{
 				continue;
 			}
@@ -117,6 +130,73 @@ void UDamageBehaviorsComponent::InvokeDamageBehavior(
 	}
 }
 
+void UDamageBehaviorsComponent::InvokeDamageBehaviorByTag(
+	const FGameplayTag DamageBehaviorTag,
+	const bool bShouldActivate,
+	const TArray<FString>& DamageBehaviorsSourcesToUse,
+	const FInstancedStruct& Payload
+)
+{
+	if (!DamageBehaviorTag.IsValid())
+	{
+		UE_LOG(LogDamageBehaviorsSystem, Warning, TEXT("UDamageBehaviorsComponent::InvokeDamageBehaviorByTag() called with invalid DamageBehaviorTag"));
+		return;
+	}
+
+	TArray<FString> ResultDamageBehaviorsSourcesToUse = DamageBehaviorsSourcesToUse;
+	if (DamageBehaviorsSourcesToUse.Num() == 0)
+	{
+		ResultDamageBehaviorsSourcesToUse = {
+			DEFAULT_DAMAGE_BEHAVIOR_SOURCE,
+		};
+	}
+
+	auto CVarDBSHitBoxes = IConsoleManager::Get().FindConsoleVariable(TEXT("DamageBehaviorsSystem.HitBoxes"));
+	bool bIsDebugEnabled = CVarDBSHitBoxes ? CVarDBSHitBoxes->GetBool() : false;
+
+	const FGameplayTag LocalDamageBehaviorTag = DamageBehaviorTag;
+
+	for (const FString& BehaviorsSourcesToUse : ResultDamageBehaviorsSourcesToUse)
+	{
+		if (BehaviorsSourcesToUse == DEFAULT_DAMAGE_BEHAVIOR_SOURCE)
+		{
+			UDamageBehavior* DamageBehavior = GetDamageBehaviorByTag(LocalDamageBehaviorTag);
+			if (!DamageBehavior)
+			{
+				if (bIsDebugEnabled)
+				{
+					UE_LOG(LogDamageBehaviorsSystem, Warning, TEXT("UDamageBehaviorsComponent::InvokeDamageBehaviorByTag() DamageBehavior \"%s\" not found on character looking for weapon"), *LocalDamageBehaviorTag.ToString());
+				}
+			}
+			else
+			{
+				DamageBehavior->MakeActive(bShouldActivate, Payload);
+			}
+		}
+		else
+		{
+			FDamageBehaviorsSource* DamageBehaviorsSource = DamageBehaviorsSources.FindByKey(BehaviorsSourcesToUse);
+			if (!DamageBehaviorsSource)
+			{
+				continue;
+			}
+			UDamageBehaviorsComponent* DBSSourceDBComponent = DamageBehaviorsSource->GetDamageBehaviorsComponent();
+			if (!DBSSourceDBComponent)
+			{
+				continue;
+			}
+			if (DBSSourceDBComponent != this)
+			{
+				DBSSourceDBComponent->InvokeDamageBehaviorByTag(
+					LocalDamageBehaviorTag,
+					bShouldActivate,
+					{ DEFAULT_DAMAGE_BEHAVIOR_SOURCE },
+					Payload);
+			}
+		}
+	}
+}
+
 UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehavior(const FString Name) const
 {
 	TObjectPtr<UDamageBehavior> const* DamageBehaviorSearch = DamageBehaviorsList.FindByPredicate(
@@ -126,8 +206,55 @@ UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehavior(const FString Name
 			{
 				return false;
 			}
-			return Behavior->Name == Name;
+			if (Behavior->Description == Name)
+			{
+				return true;
+			}
+
+			if (
+				Name == TEXT("DmgBehDefault") &&
+				Behavior->Tags.HasTagExact(DBSGameplayTags::TAG_DamageBehaviors_Default)
+			)
+			{
+				return true;
+			}
+
+			return false;
 		});
+	return DamageBehaviorSearch ? *DamageBehaviorSearch : nullptr;
+}
+
+UDamageBehavior* UDamageBehaviorsComponent::GetDamageBehaviorByTag(const FGameplayTag Tag) const
+{
+	if (!Tag.IsValid())
+	{
+		return nullptr;
+	}
+
+	TObjectPtr<UDamageBehavior> const* DamageBehaviorSearch = DamageBehaviorsList.FindByPredicate(
+		[&](const UDamageBehavior* Behavior)
+		{
+			if (!Behavior)
+			{
+				return false;
+			}
+
+			if (Behavior->Tags.HasTagExact(Tag))
+			{
+				return true;
+			}
+
+			if (
+				Tag == DBSGameplayTags::TAG_DamageBehaviors_Default &&
+				Behavior->Description == TEXT("DmgBehDefault")
+			)
+			{
+				return true;
+			}
+
+			return false;
+		});
+
 	return DamageBehaviorSearch ? *DamageBehaviorSearch : nullptr;
 }
 
@@ -244,6 +371,11 @@ void UDamageBehaviorsComponent::DefaultOnHitAnything(
 {
 	if (OnHitAnything.IsBound())
 	{
-		OnHitAnything.Broadcast(DamageBehavior, DamageBehavior->Name, HitRegistratorHitResult, CapsuleHitRegistrator, Payload);
+		TArray<FGameplayTag> BehaviorTags;
+		DamageBehavior->Tags.GetGameplayTagArray(BehaviorTags);
+		const FString DamageBehaviorName = !DamageBehavior->Description.IsEmpty()
+			? DamageBehavior->Description
+			: (BehaviorTags.Num() > 0 ? BehaviorTags[0].ToString() : FString());
+		OnHitAnything.Broadcast(DamageBehavior, DamageBehaviorName, HitRegistratorHitResult, CapsuleHitRegistrator, Payload);
 	}
 }

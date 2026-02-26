@@ -63,13 +63,18 @@ bool UDamageBehavior::CanMakeValidationTrace_Implementation(
 	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
 	UCapsuleHitRegistrator* CapsuleHitRegistrator)
 {
-	return false;
+	return bMakeValidationTrace;
 }
 
 bool UDamageBehavior::MakeValidationTrace_Implementation(
 	const FDBSHitRegistratorHitResult& HitRegistratorHitResult,
 	UCapsuleHitRegistrator* CapsuleHitRegistrator)
 {
+	if (!CanMakeValidationTrace(HitRegistratorHitResult, CapsuleHitRegistrator))
+	{
+		return false;
+	}
+	
 	if (IsValid(GetOwningActor()))
 	{
 		AActor* OwnerCharacter = GetOwningActor()->GetOwner();
@@ -232,7 +237,7 @@ void UDamageBehavior::HandleHitInternally(const FDBSHitRegistratorHitResult& Hit
 	{
 		if (!MakeValidationTrace(HitRegistratorHitResult, CapsuleHitRegistrator))
 		{
-				return;
+			return;
 		}
 	}
 

@@ -56,7 +56,7 @@ public:
 	FOnInvokeEnd OnInvokeEnd;
 
 	// Name was DEPRECATED use "Tags"
-	// В Description должен совпадать с названием атаки в дереве поведения для удобства 
+	// Description должен совпадать с названием атаки в дереве поведения для удобства 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", DisplayName="Description (Name DEPRECATED use Tags)")
 	FString Description = "";
 	

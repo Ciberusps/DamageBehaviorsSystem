@@ -36,6 +36,28 @@ struct FDBSNoiseEventOnDamageSettings
 	FName Tag = NAME_None;
 };
 
+USTRUCT(BlueprintType)
+struct FHitStopSettings
+{
+	GENERATED_BODY()
+
+	// How long the hit stop lasts in seconds
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float HitStopDuration = 0.06f;
+
+	// Time scale during hit stop (0 = full freeze, 1 = normal time)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float HitStopTimeDilation = 0.001f;
+
+	// Whether the hit stop effect is applied to the target
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bHitStopTarget = true;
+
+	// Whether the hit stop effect is applied to the owner
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bHitStopOwner = true;
+};
+
 /**
  * DamageBehavior entity that handles all hits from dumb "CapsuleHitRegistrators"
  * and filter hitted objects by adding them in "HitActors".
@@ -89,6 +111,14 @@ public:
 	// протащить несколько секунд
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior")
     bool bAttachEnemiesToCapsuleWhileActive = false;
+
+	// Включает эффект Hit Stop — кратковременную остановку/замедление времени при попадании.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DamageBehavior", meta=(InlineEditConditionToggle))
+	bool bHitStop = false;
+
+	// Позволяет настроить длительность Hit Stop и степень замедления времени.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(EditCondition="bHitStop"))
+	FHitStopSettings HitStopSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(InlineEditConditionToggle))
 	bool bReportNoiseEventOnHit = false;

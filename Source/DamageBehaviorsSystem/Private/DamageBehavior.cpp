@@ -13,7 +13,11 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageBehavior)
 
+// Registering for tick from the constructor ensures IsInGameThread(), and DamageBehaviors are Instanced
+// subobjects that the async loading thread constructs while streaming their owning actor in.
+// So we start as Never and turn ticking on in Init(), which always runs on the game thread.
 UDamageBehavior::UDamageBehavior()
+	: FTickableGameObject(ETickableTickType::Never)
 {
 	// by default FTickableGameObject use TG_PostPhysics
 	// SetTickGroup(TG_PostPhysics);
@@ -25,6 +29,10 @@ void UDamageBehavior::Init(
 )
 {
 	ApplyLegacyMigration();
+
+	// Deferred from the constructor, see the comment there. Conditional keeps the old behaviour:
+	// registered every frame but only ticked while IsTickable() is true.
+	SetTickableTickType(ETickableTickType::Conditional);
 
     OwnerActor = Owner_In;
 	HitRegistratorsSources = CapsuleHitRegistratorsSources_In;

@@ -462,8 +462,16 @@ void UDamageBehavior::AddHittedActor_Implementation(AActor* Actor_In, bool bCanB
 	
     if (bCanBeAttached && this->bAttachEnemiesToCapsuleWhileActive)
     {
-        Actor_In->AttachToActor(OwnerActor.Get(), FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true), NAME_None);
-        this->AttachedActors.Add(Actor_In);
+        // Never attach into a cycle. When two characters with attaching behaviors hit each other,
+        // A attaches B under itself and then B attaches A under itself -> A <-> B attach-parent cycle.
+        // The recursive GetAttachedActors in UCapsuleHitRegistrator::ProcessHitRegistration has no cycle
+        // protection, so the next tick overflows the stack (BugSplat group AActorForEachAttachedActors,
+        // reproduced on v0.7.29 and v0.8.3).
+        if (OwnerActor.IsValid() && Actor_In != OwnerActor.Get() && !OwnerActor->IsAttachedTo(Actor_In))
+        {
+            Actor_In->AttachToActor(OwnerActor.Get(), FAttachmentTransformRules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true), NAME_None);
+            this->AttachedActors.Add(Actor_In);
+        }
     }
 }
 

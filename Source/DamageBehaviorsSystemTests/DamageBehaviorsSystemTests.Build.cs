@@ -18,7 +18,8 @@ public class DamageBehaviorsSystemTests : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			// Module under test
-			"DamageBehaviorsSystem"
+			"DamageBehaviorsSystem",
+			"GameplayTags"
 		});
 	}
 }

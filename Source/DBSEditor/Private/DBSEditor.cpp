@@ -622,16 +622,6 @@ void FDBSEditorModule::HandleObjectPropertyChanged(UObject* Object, FPropertyCha
         return;
     }
 
-
-	TArray<UDamageBehaviorsComponent*> TemplateComps;
-	ActorCDO->GetComponents<UDamageBehaviorsComponent>(TemplateComps);
-	if (TemplateComps.Num() == 0)
-	{
-		return;
-	}
-
-	UDamageBehaviorsComponent* SourceComp = TemplateComps[0];
-
 	// Copy default list into all valid instances
 	for (TObjectIterator<UDamageBehaviorsComponent> It; It; ++It)
 	{
@@ -650,8 +640,35 @@ void FDBSEditorModule::HandleObjectPropertyChanged(UObject* Object, FPropertyCha
 			continue;
 		}
 
+		// Only instances of the Blueprint being compiled. Without this the iterator hands us EVERY
+		// loaded DamageBehaviorsComponent, so compiling one mob overwrote the DamageBehaviors of every
+		// other actor on the level.
+		if (!Comp->GetOwner()->IsA(Blueprint->GeneratedClass))
+		{
+			continue;
+		}
+
+		// Source is the instance's OWN archetype, not the compiled CDO's first component: an actor may
+		// carry several DamageBehaviorsComponents, and a child Blueprint has its own overrides that the
+		// parent's template must not clobber.
+		const UDamageBehaviorsComponent* SourceComp = Cast<UDamageBehaviorsComponent>(Comp->GetArchetype());
+		if (!SourceComp || SourceComp == Comp)
+		{
+			continue;
+		}
+
 		Comp->Modify();
-		Comp->DamageBehaviorsList = SourceComp->DamageBehaviorsList;
+
+		// DamageBehaviors are Instanced subobjects, so each instance needs its own copies. Assigning the
+		// array would share the archetype's UDamageBehavior pointers and with them the per-invoke runtime
+		// state (HitActors, bIsActive, CurrentInvokePayload).
+		Comp->DamageBehaviorsList.Reset(SourceComp->DamageBehaviorsList.Num());
+		for (const TObjectPtr<UDamageBehavior>& SourceBehavior : SourceComp->DamageBehaviorsList)
+		{
+			Comp->DamageBehaviorsList.Add(SourceBehavior
+				? DuplicateObject<UDamageBehavior>(SourceBehavior, Comp)
+				: nullptr);
+		}
 		// No need to signal UI here; values will persist until next editor refresh
 	}
 }

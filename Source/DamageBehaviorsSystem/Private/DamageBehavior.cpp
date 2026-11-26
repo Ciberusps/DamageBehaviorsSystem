@@ -9,14 +9,31 @@
 #include "DamageBehaviorsSystemSettings.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
+#include "Misc/EngineVersionComparison.h"
 #include "Perception/AISense_Hearing.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageBehavior)
 
+// Registering for tick from the constructor ensures IsInGameThread(), and DamageBehaviors are Instanced
+// subobjects that the async loading thread constructs while streaming their owning actor in.
+// So we start as Never and turn ticking on in Init(), which always runs on the game thread.
+// The ETickableTickType constructor overload only exists from 5.8; on 5.6 the default constructor
+// queues the object and GetTickableTickType() is queried on the game thread later, which is equivalent.
 UDamageBehavior::UDamageBehavior()
+#if !UE_VERSION_OLDER_THAN(5, 8, 0)
+	: FTickableGameObject(ETickableTickType::Never)
+#endif
 {
 	// by default FTickableGameObject use TG_PostPhysics
 	// SetTickGroup(TG_PostPhysics);
+}
+
+void UDamageBehavior::BeginDestroy()
+{
+	// FTickableGameObject requirement for UObjects: never tick past the start of destruction,
+	// see the comment in Tickable.h. Closes the same teardown window as the IsTickable gate.
+	SetTickableTickType(ETickableTickType::Never);
+	Super::BeginDestroy();
 }
 
 void UDamageBehavior::Init(
@@ -25,6 +42,10 @@ void UDamageBehavior::Init(
 )
 {
 	ApplyLegacyMigration();
+
+	// Deferred from the constructor, see the comment there. Conditional keeps the old behaviour:
+	// registered every frame but only ticked while IsTickable() is true.
+	SetTickableTickType(ETickableTickType::Conditional);
 
     OwnerActor = Owner_In;
 	HitRegistratorsSources = CapsuleHitRegistratorsSources_In;
@@ -369,7 +390,15 @@ void UDamageBehavior::Tick(float DeltaTime)
 
 bool UDamageBehavior::IsTickable() const
 {
-	return bIsActive && HitDetectionSettings.HitDetectionType == EDamageBehaviorHitDetectionType::ByTrace;
+	// OwnerActor.IsValid() reads the GC flags from the object array, so it is false already when
+	// the owner is pending kill / marked unreachable, i.e. before the purge can free the registrators
+	// or anything in the owner's attach tree that the trace walk dereferences. Without this gate the
+	// tickable keeps ticking during world teardown (SimpleTickObjects does not skip garbage objects)
+	// and the recursive GetAttachedActors in ProcessHitRegistration walks freed components
+	// (BugSplat group AActorForEachAttachedActors, v0.7.29/v0.8.3).
+	return bIsActive
+		&& OwnerActor.IsValid()
+		&& HitDetectionSettings.HitDetectionType == EDamageBehaviorHitDetectionType::ByTrace;
 }
 
 void UDamageBehavior::MakeActive_Implementation(bool bShouldActivate, const FInstancedStruct& Payload)

@@ -163,6 +163,7 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickable() const override;
+	virtual void BeginDestroy() override;
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Conditional; };
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UDamageBehavior, STATGROUP_Tickables); };
 
